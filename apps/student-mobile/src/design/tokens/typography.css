@@ -1,0 +1,50 @@
+/* 푸리 디자인 시스템 — 타이포그래피 토큰.
+   원본과 한 가지 차이: 폰트를 CDN이 아니라 npm 패키지(pretendard,
+   @fontsource-variable/jetbrains-mono)로 번들한다 — 이 앱은 외부 통신이 없다.
+   가변 폰트라 family 이름에 "Variable"이 붙는다. */
+:root {
+  /* ============ FAMILIES ============ */
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* Numeric readouts (timer, counts, durations) use mono + tabular figures. */
+  --font-numeric: var(--font-mono);
+
+  /* ============ WEIGHTS ============ */
+  --w-regular:  400;
+  --w-medium:   500;
+  --w-semibold: 600;
+  --w-bold:     700;
+
+  /* ============ TYPE SCALE (tablet-first, generous) ============ */
+  --text-display:   34px;  --lh-display:   42px;   /* screen titles */
+  --text-h1:        26px;  --lh-h1:        34px;
+  --text-h2:        21px;  --lh-h2:        30px;
+  --text-h3:        18px;  --lh-h3:        26px;
+  --text-body-lg:   17px;  --lh-body-lg:   28px;   /* problem text */
+  --text-body:      15px;  --lh-body:      24px;
+  --text-sm:        13px;  --lh-sm:        20px;
+  --text-caption:   12px;  --lh-caption:   16px;
+
+  /* ============ TRACKING ============ */
+  --track-tight:  -0.02em;   /* display / headings */
+  --track-normal: -0.01em;   /* body (KR reads tighter) */
+  --track-wide:    0.02em;   /* eyebrows / labels */
+}
+
+/* Base document type */
+html { font-family: var(--font-sans); }
+body {
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  letter-spacing: var(--track-normal);
+  color: var(--text-default);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular numerals everywhere numbers should not jitter */
+.num, [data-numeric] {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}

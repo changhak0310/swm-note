@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.turbo/
+*.local
+
+# Capacitor
+apps/student-mobile/android/app/build/
+apps/student-mobile/android/.gradle/
+apps/student-mobile/android/local.properties
+
+.DS_Store

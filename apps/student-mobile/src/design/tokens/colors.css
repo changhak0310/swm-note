@@ -1,0 +1,81 @@
+:root {
+  /* ============ BASE PALETTE ============ */
+
+  /* Warm growth green — the brand accent. "correct / progress". */
+  --green-50:  #F0FAF3;
+  --green-100: #DCF3E4;
+  --green-200: #B6E6C6;
+  --green-300: #84D3A2;
+  --green-400: #4FBB7C;
+  --green-500: #26A65E;   /* primary */
+  --green-600: #1E8E4F;   /* hover */
+  --green-700: #176E3E;   /* press / text-on-tint */
+  --green-800: #12522F;
+
+  /* Warm-tinted neutrals (very slightly green/paper, never pure blue-gray). */
+  --ink-950: #14170F;
+  --ink-900: #1B1F16;
+  --ink-800: #2C312A;
+  --ink-700: #444A40;
+  --ink-600: #5D6357;
+  --ink-500: #787E71;
+  --ink-400: #9AA091;
+  --ink-300: #C0C5B8;
+  --ink-200: #DFE3D9;
+  --ink-150: #EAEDE4;
+  --ink-100: #F2F4EE;
+  --ink-50:  #F8F9F5;
+  --paper:   #FFFFFF;
+  --canvas:  #F6F7F2;   /* app background */
+
+  /* ============ GRADING SCALE (O / △ / X) ============ */
+  /* O = correct (green), △ = partial/careless (amber), X = wrong (red) */
+  --grade-o:      #1E8E4F;
+  --grade-o-bg:   #DCF3E4;
+  --grade-o-ring: #84D3A2;
+
+  --grade-tri:      #C98212;   /* △ warm amber */
+  --grade-tri-bg:   #FBEFD3;
+  --grade-tri-ring: #F0CE86;
+
+  --grade-x:      #D64545;     /* X warm red */
+  --grade-x-bg:   #FBE3E3;
+  --grade-x-ring: #F0A6A6;
+
+  /* ============ ERROR-CAUSE TAGS (5, one axis) ============ */
+  --tag-concept:   #D63A3A;  --tag-concept-bg:   #FBE3E3;  /* #개념 — red */
+  --tag-calc:      #2F7DD1;  --tag-calc-bg:      #E1EFFB;  /* #계산 — blue */
+  --tag-condition: #D9741A;  --tag-condition-bg: #FBEAD6;  /* #조건 — orange */
+  --tag-approach:  #B8930A;  --tag-approach-bg:  #FBF3CE;  /* #접근 — yellow */
+  --tag-time:      #1F9D57;  --tag-time-bg:      #DCF3E4;  /* #시간 — green */
+
+  /* ============ SEMANTIC ALIASES ============ */
+  --brand:            var(--green-500);
+  --brand-hover:      var(--green-600);
+  --brand-press:      var(--green-700);
+  --brand-tint:       var(--green-100);
+  --brand-tint-soft:  var(--green-50);
+
+  --text-strong:  var(--ink-900);
+  /* 원본의 --text-body(색)는 typography의 --text-body(크기)와 충돌해 이름을 바꿨다 */
+  --text-default: var(--ink-800);
+  --text-muted:   var(--ink-500);
+  --text-faint:   var(--ink-400);
+  --text-invert:  var(--paper);
+  --text-brand:   var(--green-700);
+
+  --surface-page:    var(--canvas);
+  --surface-card:    var(--paper);
+  --surface-sunken:  var(--ink-50);
+  --surface-hover:   var(--ink-100);
+  --surface-mask:    var(--ink-150);   /* masked-handwriting placeholder */
+
+  --border-subtle:  var(--ink-150);
+  --border-default: var(--ink-200);
+  --border-strong:  var(--ink-300);
+  --border-focus:   var(--green-500);
+
+  --danger:  var(--grade-x);
+  --warning: var(--grade-tri);
+  --success: var(--grade-o);
+}
