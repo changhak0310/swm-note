@@ -72,6 +72,20 @@ export function NoteList() {
           />
         </div>
         <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
+        <SideItem
+          onClick={store.showLive}
+          icon={<LiveIcon />}
+          label="라이브 노트"
+          trailing={
+            <span className="rounded-full bg-[var(--brand-tint)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--text-brand)]">
+              새 기능
+            </span>
+          }
+        />
+        <p className="px-[var(--space-3)] pb-[var(--space-2)] text-[length:var(--text-caption)] text-[color:var(--text-faint)]">
+          필기하는 동안 고른 번호를 읽어줘
+        </p>
+        <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
         <div className="flex items-center gap-[var(--space-3)] rounded-[10px] px-[var(--space-3)] py-[var(--space-2)] text-[color:var(--text-muted)]">
           <FolderIcon />
           <span className="flex-1 text-[15px] font-medium">폴더</span>
@@ -83,6 +97,12 @@ export function NoteList() {
           <div className="mt-auto">
             <Button variant="ghost" size="sm" onClick={store.showGallery}>
               디자인 시스템
+            </Button>
+            <Button variant="ghost" size="sm" onClick={store.showCompare}>
+              분할 비교
+            </Button>
+            <Button variant="ghost" size="sm" onClick={store.showGolden}>
+              골든셋 라벨링
             </Button>
           </div>
         )}
@@ -513,6 +533,13 @@ const NoteIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
     <path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z" />
     <path d="M8 4v16" />
+  </svg>
+)
+const LiveIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+    <circle cx="6.5" cy="6.5" r="2.5" />
   </svg>
 )
 const TrashIcon = () => (

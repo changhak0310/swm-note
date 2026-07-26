@@ -1,4 +1,4 @@
-// 디자인 시스템 갤러리 — dev 전용. 토큰·컴포넌트 11종을 실물로 확인한다.
+// 디자인 시스템 갤러리 — dev 전용. 토큰·컴포넌트 12종을 실물로 확인한다.
 import { useState, type ReactNode } from 'react'
 import { useDocumentStore } from '../stores/documentStore'
 import {
@@ -8,6 +8,7 @@ import {
   Checkbox,
   Chip,
   GradeBadge,
+  GradeResultCard,
   CauseTag,
   CAUSES,
   Timer,
@@ -128,6 +129,27 @@ export function DesignGallery() {
           <Timer label="7번" seconds={412} slow />
           <ReviewChecks count={rounds} onToggle={(r) => setRounds(r === rounds ? r - 1 : r)} />
           <ReviewChecks count={3} graduated />
+        </Section>
+
+        <Section title="GradeResultCard — 채점 결과 요약">
+          <GradeResultCard number={3} grade="O" concept="지수·로그 · 로그 진수조건" seconds={184} />
+          <GradeResultCard
+            number={7}
+            grade="triangle"
+            concept="지수·로그 · 로그 부등호 방향"
+            causes={['calc']}
+            seconds={312}
+            onClick={() => {}}
+          />
+          <GradeResultCard
+            number={12}
+            grade="X"
+            concept="삼각함수 · 주기 구하기"
+            causes={['concept', 'condition']}
+            seconds={478}
+            onClick={() => {}}
+          />
+          <GradeResultCard number={15} grade="X" onClick={() => {}} disabled />
         </Section>
 
         <Section title="WrongNoteCard · ConceptHub">

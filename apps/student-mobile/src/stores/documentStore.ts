@@ -16,7 +16,7 @@ import { buildEntries, parseAnswerLines, parseAnswerTable } from '../lib/answerK
 import { buildRetryList, consecutiveCorrect, gradeRegion } from '../lib/grading'
 import { useInkStore } from './inkStore'
 
-export type Screen = 'list' | 'editor' | 'answers' | 'gallery'
+export type Screen = 'list' | 'editor' | 'answers' | 'gallery' | 'compare' | 'golden' | 'live'
 export type SheetMode = 'hidden' | 'summary' | 'resolve' | 'pill'
 
 const MAX_PDF_BYTES = 100 * 1024 * 1024
@@ -90,8 +90,14 @@ type DocumentState = {
   convertRegionToChoice: (regionId: string) => Promise<void>
 
   showToast: (msg: string) => void
+  showLive: () => void
+  closeLive: () => void
   showGallery: () => void
   closeGallery: () => void
+  showCompare: () => void
+  showGolden: () => void
+  closeGolden: () => void
+  closeCompare: () => void
   toggleZoneDebug: () => void
 }
 
@@ -604,8 +610,16 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     toastTimer = setTimeout(() => set({ toast: null }), 3500)
   },
 
+  // 라이브 노트 — 문서 레코드 없이 도는 별도 화면 (liveStore가 상태를 갖는다)
+  showLive: () => set({ screen: 'live' }),
+  closeLive: () => set({ screen: 'list' }),
+
   showGallery: () => set({ screen: 'gallery' }),
   closeGallery: () => set({ screen: 'list' }),
+  showCompare: () => set({ screen: 'compare' }),
+  showGolden: () => set({ screen: 'golden' }),
+  closeGolden: () => set({ screen: 'list' }),
+  closeCompare: () => set({ screen: 'list' }),
   toggleZoneDebug: () => set((s) => ({ showZoneDebug: !s.showZoneDebug })),
 }))
 

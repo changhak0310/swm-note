@@ -21,11 +21,13 @@ type Props = {
   regions: Region[]
   width: number
   height: number
+  /** 펜(또는 필기로 인정되는 포인터)이 이 페이지에 닿는 순간. 라이브 노트의 분석 신호 */
+  onInkStart?: () => void
 }
 
 type Selection = { ids: string[]; bbox: Box }
 
-export function InkCanvas({ page, regions, width, height }: Props) {
+export function InkCanvas({ page, regions, width, height, onInkStart }: Props) {
   const committedRef = useRef<HTMLCanvasElement>(null)
   const activeRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef<Point[] | null>(null)
@@ -117,6 +119,7 @@ export function InkCanvas({ page, regions, width, height }: Props) {
     e.currentTarget.setPointerCapture(e.pointerId)
     activePointerId.current = e.pointerId
     penState.active = true
+    onInkStart?.()
     const p = normPoint(e)
 
     if (tool === 'lasso') {

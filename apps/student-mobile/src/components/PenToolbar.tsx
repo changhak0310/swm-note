@@ -5,7 +5,8 @@ import { useDocumentStore } from '../stores/documentStore'
 import { useInkStore } from '../stores/inkStore'
 import { COLOR_HEX, useToolStore, type InkColor, type Tool } from '../stores/toolStore'
 
-export function PenToolbar() {
+/** showGrade=false — 채점이 없는 화면(라이브 노트)에서 ✦ 버튼만 뺀다 */
+export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
   const tool = useToolStore((s) => s.tool)
   const color = useToolStore((s) => s.color)
   const fingerDraw = useToolStore((s) => s.fingerDraw)
@@ -48,23 +49,27 @@ export function PenToolbar() {
       <Divider />
 
       {/* ✦ AI 채점 — 시안2의 주 진입점 (F-07) */}
-      <button
-        title={gradable ? 'AI 채점' : '이 PDF는 자동 채점을 지원하지 않습니다'}
-        aria-label="AI 채점"
-        disabled={!gradable}
-        onClick={() => void grade()}
-        className="relative grid h-12 w-12 flex-none cursor-pointer place-items-center rounded-[13px] text-white disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <span className="absolute inset-0 rounded-[13px] bg-[var(--brand)] shadow-[var(--shadow-sm)]" />
-        {!graded && gradable && (
-          <span
-            className="absolute inset-0 rounded-[13px]"
-            style={{ animation: 'puriPulse 2.2s var(--ease-out) infinite' }}
-          />
-        )}
-        <SparkIcon />
-      </button>
-      <Divider />
+      {showGrade && (
+        <>
+          <button
+            title={gradable ? 'AI 채점' : '이 PDF는 자동 채점을 지원하지 않습니다'}
+            aria-label="AI 채점"
+            disabled={!gradable}
+            onClick={() => void grade()}
+            className="relative grid h-12 w-12 flex-none cursor-pointer place-items-center rounded-[13px] text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span className="absolute inset-0 rounded-[13px] bg-[var(--brand)] shadow-[var(--shadow-sm)]" />
+            {!graded && gradable && (
+              <span
+                className="absolute inset-0 rounded-[13px]"
+                style={{ animation: 'puriPulse 2.2s var(--ease-out) infinite' }}
+              />
+            )}
+            <SparkIcon />
+          </button>
+          <Divider />
+        </>
+      )}
 
       {(Object.keys(COLOR_HEX) as InkColor[]).map((c) => (
         <button

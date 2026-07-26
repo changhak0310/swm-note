@@ -6,8 +6,8 @@
 import './polyfills'
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs'
 import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { MAX_W } from './geometry'
-import type { Box } from '../types'
+import { extractLines, type TextLine } from './pdfText'
+import type { Raster } from './scan/components'
 
 pdfjs.GlobalWorkerOptions.workerPort = new Worker(
   new URL('./pdfWorker.ts', import.meta.url),
@@ -62,60 +62,46 @@ export async function renderPage(
   return { cssHeight }
 }
 
-// ---------- 텍스트 추출 ----------
-
-export type TextToken = { str: string; box: Box }
-export type TextLine = { text: string; tokens: TextToken[] }
-
 /**
- * 페이지 텍스트를 정규화 좌표(MAX_W 기준)의 토큰으로 뽑고, 같은 줄 글자를 이어 붙인다.
- * PDF는 글자를 조각내서 주므로("[3점]" → "[","3","점","]") 줄 단위 결합이 전제다 (§7.3)
+ * 페이지를 화면 밖 캔버스에 그려 픽셀을 돌려준다 — 스캔본 분석용 (lib/scan).
+ *
+ * 텍스트 레이어가 없는 PDF에서는 이 픽셀이 유일한 입력이다. 폭은 마커 링이
+ * 25~30px로 잡히는 크기여야 한다 (lib/scan/detect.ts의 임계값 기준).
  */
-export async function getPageLines(pdf: PDFDocumentProxy, pageNo: number): Promise<TextLine[]> {
+export async function renderPageBitmap(
+  pdf: PDFDocumentProxy,
+  pageNo: number,
+  targetWidth: number,
+): Promise<Raster> {
   const page = await pdf.getPage(pageNo)
   const base = page.getViewport({ scale: 1 })
-  const f = MAX_W / base.width
-  const content = await page.getTextContent()
+  const viewport = page.getViewport({ scale: targetWidth / base.width })
 
-  const tokens: TextToken[] = []
-  for (const item of content.items) {
-    if (!('str' in item) || item.str.trim() === '') continue
-    const h = item.height * f
-    tokens.push({
-      str: item.str,
-      box: {
-        x: item.transform[4] * f,
-        // PDF 좌표는 좌하단 원점 — 좌상단 원점 정규화 좌표로 뒤집는다
-        y: (base.height - item.transform[5]) * f - h,
-        w: item.width * f,
-        h,
-      },
-    })
-  }
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.floor(viewport.width)
+  canvas.height = Math.floor(viewport.height)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  // 600dpi 스캔을 1/3로 줄인다. 기본 축소는 계단이 생겨 가는 링이 끊길 수 있다
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  // 스캔 이미지가 페이지를 다 덮지 않을 수 있다 — 투명 배경을 잉크로 오인하지 않게
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-  // 세로 중심이 가까운 토큰끼리 줄로 묶는다
-  const sorted = tokens.sort((a, b) => a.box.y + a.box.h / 2 - (b.box.y + b.box.h / 2))
-  const lines: TextLine[] = []
-  let current: TextToken[] = []
-  for (const t of sorted) {
-    const prev = current[current.length - 1]
-    const sameLine =
-      prev &&
-      Math.abs(t.box.y + t.box.h / 2 - (prev.box.y + prev.box.h / 2)) <
-        Math.max(t.box.h, prev.box.h) * 0.6
-    if (sameLine) current.push(t)
-    else {
-      if (current.length) pushLine(lines, current)
-      current = [t]
-    }
-  }
-  if (current.length) pushLine(lines, current)
-  return lines
+  await page.render({ canvasContext: ctx, viewport, canvas }).promise
+  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  canvas.width = 0                       // 캔버스 백킹 스토어 즉시 해제 (모바일 메모리)
+  canvas.height = 0
+  return { width, height, rgba: data }
 }
 
-function pushLine(lines: TextLine[], tokens: TextToken[]) {
-  tokens.sort((a, b) => a.box.x - b.box.x)
-  lines.push({ text: tokens.map((t) => t.str).join(''), tokens })
+// ---------- 텍스트 추출 ----------
+// 실제 추출 로직은 pdfText.ts에 있다 — 워커 배선 없이 Node에서도 돌려야 하기 때문이다.
+
+export type { TextToken, TextLine } from './pdfText'
+
+export async function getPageLines(pdf: PDFDocumentProxy, pageNo: number): Promise<TextLine[]> {
+  return extractLines(await pdf.getPage(pageNo))
 }
 
 /** gradable 판정 — 텍스트 레이어 유무 (1페이지 기준) */
