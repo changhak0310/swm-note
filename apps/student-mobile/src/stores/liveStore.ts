@@ -140,8 +140,9 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         pageAspects.push(vp.height / vp.width)
       }
 
-      // 텍스트 레이어 유무가 분석 경로를 가른다 (스캔본은 픽셀에서 찾는다)
-      const mode: AnalysisMode = (await hasTextLayer(pdf)) ? 'text' : 'scan'
+      // 텍스트 레이어 유무가 분석 경로를 가른다 (스캔본은 픽셀에서 찾는다).
+      // SCAN_ONLY면 텍스트가 있어도 픽셀에서 찾는다 — 이 브랜치의 실험 (아래 주석)
+      const mode: AnalysisMode = SCAN_ONLY || !(await hasTextLayer(pdf)) ? 'scan' : 'text'
 
       livePdf = pdf
       docPass = null
@@ -159,9 +160,11 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         numCrops: {},
         loading: false,
         message:
-          mode === 'scan'
-            ? '텍스트가 없는 스캔본이야. 펜이 닿으면 그 쪽 이미지에서 번호 자리와 ①~⑤를 찾고, 번호 값(0109 같은)은 숫자 OCR로 읽어 배지에 띄워.'
-            : null,
+          mode !== 'scan'
+            ? null
+            : SCAN_ONLY
+              ? '스캔 경로로만 분석해. 텍스트 레이어가 있어도 쓰지 않고, 펜이 닿은 쪽 이미지에서 ①~⑤ 링과 번호 자리를 직접 찾아.'
+              : '텍스트가 없는 스캔본이야. 펜이 닿으면 그 쪽 이미지에서 번호 자리와 ①~⑤를 찾고, 번호 값(0109 같은)은 숫자 OCR로 읽어 배지에 띄워.',
       })
     } catch (e) {
       set({

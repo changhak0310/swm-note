@@ -149,6 +149,16 @@ suite('실제 PDF 선지 판정', () => {
     if (uneven.length) console.log(`\n선지 높이가 들쭉날쭉한 문항 ${uneven.length}개:\n` + uneven.slice(0, 8).join('\n'))
     expect(uneven).toHaveLength(0)
 
+    // ★ 번호 수열에 빈칸이 없을 것 — 문항을 통째로 놓치면 여기서 드러난다.
+    //
+    // 실측 hi_math: 페이지 맨 위 가운데의 작은 장식이 거터를 이어 붙여 p47이 1단으로
+    // 판정됐고 오른쪽 단 문항 셋(04·05·06)이 사라졌다. 서술형 쪽(p35·p40)은 단 좌단이
+    // 1.1%p 안쪽이라 정렬 클러스터에서 떨어져 20·21번이 사라졌다. 둘 다 "그 문항만
+    // 구역이 안 잡힌다"로 나타난다.
+    const gaps = result.report.missingNumbers ?? []
+    if (gaps.length) console.log(`\n번호 수열 빈칸: ${gaps.slice(0, 20).join(', ')}`)
+    expect(gaps).toHaveLength(0)
+
     const blind = result.problems.filter((p) => p.flags?.includes('FLAG_CHOICES_MISSING'))
     if (blind.length) {
       console.log(

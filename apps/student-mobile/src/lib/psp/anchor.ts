@@ -132,9 +132,12 @@ export function resolveAnchors(candidates: Anchor[], columnWidth: number): Ancho
 
   const kept: Anchor[] = []
   for (const group of groups.values()) kept.push(...largestCluster(group, tol))
+  kept.sort(byDocOrder)
 
-  const anchors = kept.sort(
-    (a, b) => a.pageIndex - b.pageIndex || a.columnIndex - b.columnIndex || a.bbox[1] - b.bbox[1],
+  // 기준선을 벗어났어도 번호 수열의 빈칸을 정확히 메우면 되살린다 (아래 참고)
+  const keptSet = new Set(kept)
+  const anchors = [...kept, ...fillNumberGaps(kept, eligible.filter((c) => !keptSet.has(c)))].sort(
+    byDocOrder,
   )
 
   // V-1 이전 단계 — 순서 자체가 역행하는 지점
@@ -148,6 +151,54 @@ export function resolveAnchors(candidates: Anchor[], columnWidth: number): Ancho
   }
 
   return { anchors, discarded: candidates.length - anchors.length, disorderAt }
+}
+
+/** 되살릴 빈칸의 최대 폭 — 앞뒤 앵커의 번호 차이 */
+const GAP_MAX = 5
+
+const byDocOrder = (a: Anchor, b: Anchor) =>
+  a.pageIndex - b.pageIndex || a.columnIndex - b.columnIndex || a.bbox[1] - b.bbox[1]
+
+/**
+ * 정렬 기준선에서 벗어나 폐기된 후보 중, 번호 수열의 빈칸을 정확히 메우는 것을 되살린다.
+ *
+ * 한 책 안에서도 단 좌단이 통째로 밀리는 쪽이 있다 — 실측 hi_math의 서술형 쪽(p35·p40)은
+ * 왼쪽 단 번호가 다른 쪽보다 1.1%p 안쪽에 찍혀 클러스터에서 떨어졌고, 20·21번이 통째로
+ * 사라졌다. 허용 오차를 그만큼 넓히면 이번엔 에세이 쪽(p4)의 장식 번호가 들어온다 —
+ * 두 어긋남의 크기가 1.0%p·1.1%p로 사실상 같아서 오차로는 가를 수 없다.
+ *
+ * 가르는 것은 번호다. 되살린 20·21은 앞쪽(19)과 뒤쪽(22) 사이의 빈칸에 정확히 들어맞고,
+ * 장식 번호는 그런 자리가 없다. 그래서 "문서 순서상 앞뒤 앵커 사이의 빠진 번호이고,
+ * 그 이웃과 같은 쪽에 있을 것"만 받아들인다.
+ */
+function fillNumberGaps(accepted: Anchor[], discarded: Anchor[]): Anchor[] {
+  if (accepted.length < 2 || discarded.length === 0) return []
+
+  const out: Anchor[] = []
+  const used = new Set<string>()
+  for (const c of [...discarded].sort(byDocOrder)) {
+    if (c.numberInt === null) continue
+
+    let before: Anchor | null = null
+    let after: Anchor | null = null
+    for (const a of accepted) {
+      if (byDocOrder(a, c) < 0) before = a
+      else if (after === null) after = a
+    }
+    if (!before || !after || before.numberInt === null || after.numberInt === null) continue
+    if (after.numberInt - before.numberInt > GAP_MAX) continue
+    if (c.numberInt <= before.numberInt || c.numberInt >= after.numberInt) continue
+    // 멀리 있는 쪽의 번호를 끌어오지 않는다 — 이웃과 같은 쪽에 있어야 한다
+    if (c.pageIndex !== before.pageIndex && c.pageIndex !== after.pageIndex) continue
+
+    // 빈칸은 문서 안에서 여러 번 나타난다(번호가 절마다 되풀이된다) — 키에 자리를 넣어
+    // 구분한다. 번호만으로 묶으면 뒤에 오는 같은 빈칸이 통째로 건너뛰어진다
+    const key = `${before.pageIndex}:${before.numberInt}-${after.pageIndex}:${after.numberInt}:${c.numberInt}`
+    if (used.has(key)) continue
+    used.add(key)
+    out.push(c)
+  }
+  return out
 }
 
 const PADDED = /^0\d/

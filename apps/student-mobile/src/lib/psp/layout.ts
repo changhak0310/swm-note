@@ -70,6 +70,8 @@ const PAGE_NUMBER = /^\d{1,3}$/
 const ANCHOR_NUMBER = /^\d{1,3}[.)]?$/
 /** §5.1 A-3과 같은 값 — 여기서는 "쪽번호가 아니다"의 판정선으로 쓴다 */
 const EMPHASIS_RATIO = 1.05
+/** 단 경계를 정할 때 본문으로 칠 최소 글자 크기 (본문 중앙값 대비) */
+const BODY_FONT_MIN = 0.8
 
 // 골 하나만으로는 진짜 단 경계인지 알 수 없다. 페이지 세로를 잘라 각 띠에
 // 경계 양쪽 모두 텍스트가 있는지 세고, 그 비율이 낮으면 2단이 아니라고 본다.
@@ -114,7 +116,7 @@ export function layoutPages(pages: PageInput[]): PageLayout[] {
       Math.max(band.bottom ?? textBottom, textBottom),
     ]
 
-    const split = findColumnSplit(body, contentBox, page.drawings ?? [])
+    const split = findColumnSplit(body, contentBox, page.drawings ?? [], fontMedian)
     const columns = split.boundary === null
       ? [makeColumn(0, body, contentBox)]
       : splitColumns(body, contentBox, split.boundary)
@@ -305,6 +307,7 @@ export function findColumnSplit(
   spans: Span[],
   contentBox: BBox,
   drawings: BBox[] = [],
+  fontMedian = 0,
 ): ColumnSplit {
   const x0 = contentBox[0]
   const width = contentBox[2] - contentBox[0]
@@ -317,8 +320,16 @@ export function findColumnSplit(
     return { boundary: rule, ambiguous: false }
   }
 
+  // ★ 히스토그램은 본문 글자만 본다.
+  //
+  // 거터는 "아무 span도 닿지 않은 x"로 찾는데, 조각 하나만 걸쳐도 골이 통째로 사라진다.
+  // 실측 hi_math p47: 페이지 맨 위 가운데의 작은 장식 "동영상 풀 강좌"(본문의 0.67배)가
+  // x 0.457~0.516으로 거터를 이어 붙였고, 그 한 조각 때문에 2단 페이지가 1단으로
+  // 판정돼 오른쪽 단의 문항 셋(04·05·06)이 통째로 사라졌다. 본문보다 뚜렷이 작은
+  // 글자는 배지·라벨이므로 단 경계를 정하는 데서 뺀다.
+  const body = fontMedian > 0 ? spans.filter((s) => s.fontSize >= fontMedian * BODY_FONT_MIN) : spans
   const filled = new Array<boolean>(HIST_BINS).fill(false)
-  for (const s of spans) {
+  for (const s of body) {
     const a = Math.floor(((s.bbox[0] - x0) / width) * HIST_BINS)
     const b = Math.ceil(((s.bbox[2] - x0) / width) * HIST_BINS)
     for (let i = Math.max(0, a); i < Math.min(HIST_BINS, b); i++) filled[i] = true
