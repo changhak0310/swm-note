@@ -30,11 +30,35 @@ export type Comp = {
 // 거터가 메워진다(실측 p20·p30이 2단 → 1단으로 무너졌다).
 const INK_MIN_T = 120
 const INK_MAX_T = 160
-// 유채색 판정 — 검정 본문과 색 강조(문제 번호)를 가른다
-const CHROMA_MIN = 42
+// 마커 전용 느슨한 문턱. 선지 링은 가는 획이라 렌더 축척이 조금만 달라져도 회색값이
+// 본 문턱을 넘나들며 끊긴다 — 실측: 앱 해상도(1700px)에서 베이직쎈 p17의 ①·④가
+// C자로 끊겨 구멍이 사라졌고(3×3 닫기로도 못 메운다) 그 그룹이 통째로 버려졌다.
+// +20에서 두 책의 마커 fill은 0.15~0.18로 상한(0.20) 아래에 머물고 한글 고리는
+// 0.35로 오히려 더 벌어진다. 200까지 풀면 옅은 배경 상자(≥220)에 다가가 위험하다.
+const INK_LOOSE_ADD = 20
+const INK_LOOSE_MAX = 185
+// 유채색 판정 — 검정 본문과 색 강조(문제 번호)를 가른다.
+//
+// 두 단계다: 씨앗(≥42)과 이음(≥16). 인쇄가 탁한 책은 색 번호의 픽셀 절반이
+// 채도 16~42 사이라(실측 베이직쎈: "01" 글자 chroma 7~53 산포) 문턱 하나로 자르면
+// 글자가 조각난다 — 조각나면 "숫자 2개 이상" 필터와 onPaper 판정까지 연쇄로 무너진다.
+// 반대로 문턱만 낮추면 검정 본문 가장자리의 JPEG 색번짐이 넘어온다. 그래서 약한 색으로
+// 덩어리를 잇되, 진한 씨앗을 품은 덩어리만 유채색으로 인정한다(detect.ts).
+// 검정 본문 자체는 안전하다 — 실측 두 책 모두 chroma 0~2.
+const CHROMA_SEED = 42
+const CHROMA_JOIN = 16
 const CHROMA_LUMA_MAX = 205
 
-export type Masks = { ink: Uint8Array; color: Uint8Array; threshold: number }
+export type Masks = {
+  ink: Uint8Array
+  /** 마커(선지 링) 전용 — ink ⊂ inkLoose. 가는 링이 끊기지 않게 문턱을 조금 올렸다 */
+  inkLoose: Uint8Array
+  /** 약한 색 — 덩어리를 잇는 용도. 이 마스크의 연결요소는 seed 검증을 거쳐야 한다 */
+  color: Uint8Array
+  /** 진한 색 씨앗 — color ⊃ seed */
+  colorSeed: Uint8Array
+  threshold: number
+}
 
 /**
  * 잉크 마스크와 유채색 마스크.
@@ -60,16 +84,23 @@ export function masks(r: Raster): Masks {
 
   const threshold = Math.min(INK_MAX_T, Math.max(INK_MIN_T, otsu(hist, n)))
 
+  const loose = Math.min(INK_LOOSE_MAX, threshold + INK_LOOSE_ADD)
   const ink = new Uint8Array(n)
+  const inkLoose = new Uint8Array(n)
   const color = new Uint8Array(n)
+  const colorSeed = new Uint8Array(n)
   for (let i = 0; i < n; i++) {
     if (luma[i] < threshold) ink[i] = 1
+    if (luma[i] < loose) inkLoose[i] = 1
     const o = i * 4
     const chroma =
       Math.max(d[o], d[o + 1], d[o + 2]) - Math.min(d[o], d[o + 1], d[o + 2])
-    if (chroma >= CHROMA_MIN && luma[i] < CHROMA_LUMA_MAX) color[i] = 1
+    if (luma[i] < CHROMA_LUMA_MAX) {
+      if (chroma >= CHROMA_JOIN) color[i] = 1
+      if (chroma >= CHROMA_SEED) colorSeed[i] = 1
+    }
   }
-  return { ink, color, threshold }
+  return { ink, inkLoose, color, colorSeed, threshold }
 }
 
 /** 클래스 간 분산이 최대가 되는 문턱 (Otsu 1979) */
@@ -150,43 +181,78 @@ export function components(mask: Uint8Array, w: number, h: number, minPx = 1): C
  * 선지 마커 ①~⑤는 "테두리 원 + 그 안의 숫자"인데, 인쇄물에서 둘은 붙어 있지 않다.
  * 그래서 마커는 채움률이 낮고(0.1 언저리) 내부에 큰 구멍이 있는 덩어리로 나타난다.
  * 한글 ㅇ·ㅁ·ㅂ의 고리도 구멍이 있지만 훨씬 작고 채움률이 높다.
+ *
+ * close=true면 3×3 닫기(팽창→침식)를 하고 잰다. 저해상도 스캔은 링이 1~2px 끊겨
+ * 구멍 판정이 새는데(실측 베이직쎈 p11 ②: 크기·채움은 완벽한데 hole=0), 닫기가
+ * 그 틈만 메운다 — 링 두께는 침식이 되돌리므로 구멍 넓이는 거의 변하지 않는다.
  */
-export function holeArea(c: Comp, mask: Uint8Array, w: number): number {
-  const bw = c.w
-  const bh = c.h
-  const vis = new Uint8Array(bw * bh)
-  const stack: number[] = []
-  const at = (x: number, y: number) => mask[(c.y0 + y) * w + (c.x0 + x)]
-
-  const push = (x: number, y: number) => {
-    const i = y * bw + x
-    if (!vis[i] && !at(x, y)) {
-      vis[i] = 1
-      stack.push(i)
+export function holeArea(c: Comp, mask: Uint8Array, w: number, close = false): number {
+  // 지역 격자에 2px 여백 — 팽창해도 경계에 닿지 않고, 플러드가 항상 바깥에서 시작한다
+  const M = 2
+  const bw = c.w + M * 2
+  const bh = c.h + M * 2
+  let grid = new Uint8Array(bw * bh)
+  for (let y = 0; y < c.h; y++) {
+    for (let x = 0; x < c.w; x++) {
+      grid[(y + M) * bw + (x + M)] = mask[(c.y0 + y) * w + (c.x0 + x)]
     }
   }
-  for (let x = 0; x < bw; x++) {
-    push(x, 0)
-    push(x, bh - 1)
+
+  if (close) {
+    const dilated = new Uint8Array(bw * bh)
+    for (let y = 0; y < bh; y++) {
+      for (let x = 0; x < bw; x++) {
+        if (!grid[y * bw + x]) continue
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const ny = y + dy
+            const nx = x + dx
+            if (ny >= 0 && ny < bh && nx >= 0 && nx < bw) dilated[ny * bw + nx] = 1
+          }
+        }
+      }
+    }
+    const closed = new Uint8Array(bw * bh)
+    for (let y = 0; y < bh; y++) {
+      for (let x = 0; x < bw; x++) {
+        let keep = 1
+        for (let dy = -1; dy <= 1 && keep; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const ny = y + dy
+            const nx = x + dx
+            if (ny < 0 || ny >= bh || nx < 0 || nx >= bw || !dilated[ny * bw + nx]) {
+              keep = 0
+              break
+            }
+          }
+        }
+        closed[y * bw + x] = keep
+      }
+    }
+    grid = closed
   }
-  for (let y = 0; y < bh; y++) {
-    push(0, y)
-    push(bw - 1, y)
-  }
+
+  const vis = new Uint8Array(bw * bh)
+  const stack: number[] = [0]
+  vis[0] = 1
   while (stack.length) {
     const i = stack.pop()!
     const x = i % bw
     const y = (i / bw) | 0
-    if (x > 0) push(x - 1, y)
-    if (x + 1 < bw) push(x + 1, y)
-    if (y > 0) push(x, y - 1)
-    if (y + 1 < bh) push(x, y + 1)
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+      const nx = x + dx
+      const ny = y + dy
+      if (nx < 0 || nx >= bw || ny < 0 || ny >= bh) continue
+      const j = ny * bw + nx
+      if (!vis[j] && !grid[j]) {
+        vis[j] = 1
+        stack.push(j)
+      }
+    }
   }
 
   let hole = 0
-  for (let y = 0; y < bh; y++) {
-    for (let x = 0; x < bw; x++) if (!vis[y * bw + x] && !at(x, y)) hole++
-  }
+  for (let i = 0; i < bw * bh; i++) if (!vis[i] && !grid[i]) hole++
   return hole
 }
 

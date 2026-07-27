@@ -4,13 +4,14 @@
 //   PAGES=20,45,90 로 페이지 지정 (기본은 몇 쪽 표본)
 //
 // PDF는 저작물이라 리포에 넣지 않는다. 경로가 없으면 조용히 건너뛴다.
-// 앱은 canvas로 렌더하지만 Node에는 canvas가 없어 페이지 이미지를 직접 축소해 쓴다 —
-// 둘 다 박스 평균이라 검출 입력은 사실상 같다.
+// 래스터는 앱과 같은 폭(1700px)으로 만든다 — scanRaster.ts 참고. 폭이 다르면 가는
+// 선지 링이 끊기고 안 끊기고가 갈려, 테스트가 통과해도 앱에서는 깨진다.
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { detectScan } from '../scan/detect'
 import { scanRegions } from '../scan/regions'
 import { detectMarks } from '../liveDetect'
+import { APP_SCAN_WIDTH, pageRaster } from './scanRaster'
 import type { Point, Stroke } from '../../types'
 
 function circleOn(box: { x: number; y: number; w: number; h: number }, t: number): Stroke {
@@ -59,30 +60,8 @@ suite('스캔 검출', () => {
   it('샘플 페이지', async () => {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
     const pdf = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(PDF!)) }).promise
-    const TARGET = Number(process.env.TARGET_W || 1700)
-
-    const raster = async (pageNo: number) => {
-      const page = await pdf.getPage(pageNo)
-      const list = await page.getOperatorList()
-      const i = list.fnArray.indexOf((pdfjs as any).OPS.paintImageXObject)
-      if (i < 0) return null
-      const img: any = page.objs.get((list.argsArray[i] as any)[0])
-      const { width: W, data: src } = img
-      const S = Math.max(1, Math.round(W / TARGET))
-      const w = (W / S) | 0, h = ((img.height / S) | 0)
-      const comp = img.kind === 1 ? 1 : img.kind === 2 ? 3 : 4
-      const rgba = new Uint8ClampedArray(w * h * 4)
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        let r = 0, g = 0, b = 0, n = 0
-        for (let dy = 0; dy < S; dy++) for (let dx = 0; dx < S; dx++) {
-          const s = (((y * S + dy) * W) + (x * S + dx)) * comp
-          r += src[s]; g += src[s + 1]; b += src[s + 2]; n++
-        }
-        const o = (y * w + x) * 4
-        rgba[o] = r / n; rgba[o + 1] = g / n; rgba[o + 2] = b / n; rgba[o + 3] = 255
-      }
-      return { width: w, height: h, rgba }
-    }
+    const TARGET = Number(process.env.TARGET_W || APP_SCAN_WIDTH)
+    const raster = (pageNo: number) => pageRaster(pdfjs, pdf, pageNo, TARGET)
 
     const pages = (process.env.PAGES || Object.keys(TRUTH).join(',')).split(',').map(Number)
     let tp = 0, tc = 0, tf = 0, mk = 0, mkOk = 0, total = 0
@@ -106,7 +85,8 @@ suite('스캔 검출', () => {
         if (got[rg.id] === c.label) mkOk++
         else misses.push(`p${p} ${rg.id.split(':').pop()} 선지${c.label} → ${JSON.stringify(got)}`)
       }
-      const t = TRUTH[p]
+      // 정답표는 쎈 표본의 것이다 — PAGES로 다른 책을 훑을 때는 통계만 본다
+      const t = process.env.PAGES ? undefined : TRUTH[p]
       if (t) {
         const left = regions.filter((r) => {
           const b = r.numBox ?? r.bounds

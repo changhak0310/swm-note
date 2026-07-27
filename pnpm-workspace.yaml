@@ -2,3 +2,5 @@ packages:
   - "apps/*"
 allowBuilds:
   esbuild: true
+  # postinstall이 opencollective 배너뿐이라 빌드 스크립트가 필요 없다
+  tesseract.js: false

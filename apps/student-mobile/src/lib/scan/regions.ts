@@ -27,6 +27,12 @@ export type ScanRegionResult = {
   regions: Region[]
   /** 번호를 못 찾아 마커 위치로 대신한 문항 수 — 진단용 */
   synthesizedHeadings: number
+  /**
+   * regionId → 선지 마커 링의 래스터 픽셀 bbox (라벨 순).
+   * 선지 라벨 OCR 교정(liveStore)이 링 크롭을 자르는 데 쓴다 — 선지 hitbox는
+   * 답 텍스트까지 품는 띠라 OCR 입력으로는 못 쓴다.
+   */
+  markerRects: Record<string, { x0: number; y0: number; x1: number; y1: number }[]>
 }
 
 /**
@@ -50,6 +56,7 @@ export function scanRegions(
 
   const groups = groupsOf(layout)
   const regions: Region[] = []
+  const markerRects: ScanRegionResult['markerRects'] = {}
   let synthesized = 0
   let seq = 0
 
@@ -110,14 +117,19 @@ export function scanRegions(
       const group = groupOf.get(slot)
       const choices = group ? choiceBoxes(group, { x0: slot.box.x0, x1: slot.box.x1 + 1 }, scale, k) : []
       seq++
+      const id = `${docId}:p${page}:s${seq}`
+      if (group) {
+        markerRects[id] = group.items.map((m) => ({ x0: m.x0, y0: m.y0, x1: m.x1, y1: m.y1 }))
+      }
       regions.push({
         // 번호를 읽지 못하므로 위치 순번으로 id를 만든다. 같은 쪽을 다시 분석해도
         // 같은 id가 나와야 필기 귀속과 판정이 유지된다
-        id: `${docId}:p${page}:s${seq}`,
+        id,
         docId,
         page,
         bounds: toBox(slot.box),
         numBox: slot.head ? toBox(slot.head) : group ? toBox(group.items[0]) : undefined,
+        numSynth: slot.head ? undefined : true,
         stemBox: undefined,
         ansBox: choices.length ? unionBox(choices.map((c) => c.box)) : undefined,
         choices,
@@ -127,7 +139,7 @@ export function scanRegions(
     }
   }
 
-  return { regions, synthesizedHeadings: synthesized }
+  return { regions, synthesizedHeadings: synthesized, markerRects }
 }
 
 // ---------- 선지 띠 ----------

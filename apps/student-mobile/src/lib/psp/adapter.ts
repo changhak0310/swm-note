@@ -4,6 +4,7 @@
 // 파이프라인 내부는 변환을 모른다.
 import { OPS, type PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { MAX_W } from '../geometry'
+import { isRotatedQuarter, toViewportPoint, type ViewportLike } from '../pdfCoords'
 import type { Box, ChoiceLabel, Region as AppRegion } from '../../types'
 import type { PipelineResult } from './pipeline'
 import { toPageBBox, type BBox, type PageInput, type Problem, type Span } from './types'
@@ -27,22 +28,25 @@ export async function pageInput(
   const H = view.height
 
   const content = await page.getTextContent()
+  const swap = isRotatedQuarter(view)
   const spans: Span[] = []
   for (const item of content.items) {
     if (!('str' in item) || item.str.trim() === '') continue
-    const h = item.height
-    const x = item.transform[4]
-    // ★ 좌하단 원점 → 좌상단 원점. 이 한 줄이 전체 좌표계 변환 지점이다
-    const yTop = H - item.transform[5] - h
+    // ★ 좌하단 원점 → 좌상단 원점. 변환은 뷰포트 행렬에 맡긴다 — CropBox 원점이
+    //   0이 아닌 PDF가 있어서 transform[4]를 그대로 쓰면 페이지 밖으로 나간다 (pdfCoords.ts)
+    const [vx, vy] = toViewportPoint(view, item.transform[4], item.transform[5])
+    const w = swap ? item.height : item.width
+    const h = swap ? item.width : item.height
+    const yTop = vy - h
     spans.push({
       text: item.str,
-      bbox: [x / W, yTop / H, (x + item.width) / W, (yTop + h) / H],
+      bbox: [vx / W, yTop / H, (vx + w) / W, (yTop + h) / H],
       fontSize: h / H,
       bold: isBold(page, item.fontName),
     })
   }
 
-  const figures = withFigures ? await extractFigures(page, W, H) : { images: [], drawings: [] }
+  const figures = withFigures ? await extractFigures(page, view) : { images: [], drawings: [] }
 
   return {
     index: pageNo - 1,     // PSP는 0-based (§3.1)
@@ -89,9 +93,10 @@ async function extractFigures(
   page: {
     getOperatorList(): Promise<{ fnArray: number[]; argsArray: unknown[] }>
   },
-  W: number,
-  H: number,
+  view: ViewportLike,
 ): Promise<{ images: BBox[]; drawings: BBox[] }> {
+  const W = view.width
+  const H = view.height
   const ops = OPS as unknown as Record<string, number>
 
   let list: { fnArray: number[]; argsArray: unknown[] }
@@ -113,16 +118,12 @@ async function extractFigures(
     m[1] * x + m[3] * y + m[5],
   ]
 
-  /** PDF 사용자 공간의 사각형 → 정규화 좌상단 원점 bbox */
+  /** PDF 사용자 공간의 사각형 → 정규화 좌상단 원점 bbox (변환은 뷰포트 행렬이 한다) */
   const toBBox = (pts: [number, number][]): BBox => {
-    const xs = pts.map((p) => p[0])
-    const ys = pts.map((p) => p[1])
-    return [
-      Math.min(...xs) / W,
-      (H - Math.max(...ys)) / H,
-      Math.max(...xs) / W,
-      (H - Math.min(...ys)) / H,
-    ]
+    const v = pts.map(([x, y]) => toViewportPoint(view, x, y))
+    const xs = v.map((p) => p[0])
+    const ys = v.map((p) => p[1])
+    return [Math.min(...xs) / W, Math.min(...ys) / H, Math.max(...xs) / W, Math.max(...ys) / H]
   }
 
   for (let i = 0; i < list.fnArray.length; i++) {

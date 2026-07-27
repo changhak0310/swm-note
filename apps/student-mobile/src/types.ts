@@ -31,6 +31,7 @@ export type Region = {
   bounds: Box                     // 문제 전체 경계
   numBox?: Box
   numLabel?: string               // 인식된 문제 번호
+  numSynth?: boolean              // 번호 자리를 못 찾아 선지 위치로 대신함 (스캔) — 번호 OCR 대상이 아니다
   stemBox?: Box
   ansBox?: Box
   choices: { label: ChoiceLabel; box: Box }[]   // 비어 있으면 주관식

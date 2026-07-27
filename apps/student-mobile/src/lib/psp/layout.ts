@@ -66,6 +66,8 @@ const GAP_BAND: [number, number] = [0.4, 0.6]   // §4.2 중앙 40~60%
 // 양 끝 floor/ceil이 각각 최대 한 빈씩 먹으므로 넉넉히 잡는다.
 const HIST_BINS = 1000
 const PAGE_NUMBER = /^\d{1,3}$/
+/** 문항 번호처럼 생긴 토막 — 장식 제거에서 지켜야 할 대상 */
+const ANCHOR_NUMBER = /^\d{1,3}[.)]?$/
 /** §5.1 A-3과 같은 값 — 여기서는 "쪽번호가 아니다"의 판정선으로 쓴다 */
 const EMPHASIS_RATIO = 1.05
 
@@ -85,7 +87,7 @@ export function layoutPages(pages: PageInput[]): PageLayout[] {
   const band = contentBand(pages, chrome, fontMedian)
 
   return pages.map((page) => {
-    const body = page.spans.filter((s) => !isChrome(s, chrome, fontMedian))
+    const body = page.spans.filter((s) => !chromeSpans(page, chrome, fontMedian).has(s) && !isPageNumber(s, chrome, fontMedian))
     if (body.length === 0) {
       return {
         pageIndex: page.index,
@@ -226,7 +228,9 @@ function contentBand(
   const bottoms: number[] = []
 
   for (const page of pages) {
-    const marks = page.spans.filter((s) => isChrome(s, chrome, fontMedian))
+    const marks = page.spans.filter(
+      (s) => chromeSpans(page, chrome, fontMedian).has(s) || isPageNumber(s, chrome, fontMedian),
+    )
     const head = marks.filter((s) => (s.bbox[1] + s.bbox[3]) / 2 < OUTER_BAND)
     const foot = marks.filter((s) => (s.bbox[1] + s.bbox[3]) / 2 > 1 - OUTER_BAND)
     if (head.length) tops.push(Math.max(...head.map((s) => s.bbox[3])))
@@ -239,21 +243,55 @@ function contentBand(
   }
 }
 
-function isChrome(span: Span, chrome: Chrome, fontMedian: number): boolean {
+/**
+ * 반복되는 머리말·꼬리말에 속한 span들.
+ *
+ * ★ 판정 단위는 span이 아니라 라인이다. 반복 여부는 라인 문구로 재는데(findRepeatedBands)
+ *   걸러낼 때 span 문구로 견주면, 꼬리말이 여러 조각으로 쪼개져 오는 PDF에서는 키가
+ *   영영 안 맞는다 — 실측 hi_math의 꼬리말 "I. 다항식 - (1) 다항식의 연산 ~ (2) 항등식과
+ *   나머지정리"는 17쪽에서 반복되는데도 한 번도 안 걸러졌다. 그 탓에 꼬리말이 마지막
+ *   문항에 딸려 들어가 텍스트 범위를 페이지 끝까지 늘렸고, C-3(선지는 하단 60%) 밴드가
+ *   밀려 진짜 선지가 통째로 탈락했다. 게다가 꼬리말 속 "(1)", "(2)"가 선지로 잡혔다.
+ */
+function chromeSpans(page: PageInput, chrome: Chrome, fontMedian: number): Set<Span> {
+  let cached = chromeCache.get(page)
+  if (cached) return cached
+  cached = new Set<Span>()
+  const outer = page.spans.filter((s) => inOuterBand(s.bbox))
+  for (const line of buildLines(outer)) {
+    const key = bandKey(line.bbox, line.text)
+    if (!key || !chrome.lines.has(key)) continue
+    // ★ 문항 번호가 든 줄은 지우지 않는다. 각 단 첫 문항은 페이지 상단 대역에 들어오고
+    //   쪽마다 문구가 닮아 "반복"으로 보이기 쉽다 — 지웠다가는 쪽마다 첫 문항을 잃는다.
+    //   지키는 대상을 "강조된 글자"가 아니라 "강조된 번호"로 좁힌 이유는, 꼬리말에도
+    //   굵은 제목이 섞여 있기 때문이다(실측 hi_math 꼬리말의 단원명). 쪽번호 자리의
+    //   숫자는 번호가 아니므로 뺀다.
+    const hasAnchorNumber = line.spans.some(
+      (s) =>
+        (s.bold || s.fontSize >= fontMedian * EMPHASIS_RATIO) &&
+        ANCHOR_NUMBER.test(s.text.trim()) &&
+        !chrome.pageNumberSpots.has(spotKey(s.bbox)),
+    )
+    if (hasAnchorNumber) continue
+    for (const s of line.spans) cached.add(s)
+  }
+  chromeCache.set(page, cached)
+  return cached
+}
+
+const chromeCache = new WeakMap<PageInput, Set<Span>>()
+
+function isPageNumber(span: Span, chrome: Chrome, fontMedian: number): boolean {
   if (!inOuterBand(span.bbox)) return false
 
   // §4.2는 페이지 번호 패턴(^\d{1,3}$)을 무조건 제거하라고 하지만 그대로 두면 안 된다.
   // 문제집은 각 단 첫 문항의 번호가 페이지 상단 15% 안에 들어와서, 패턴만 보고
   // 지우면 그 번호들이 통째로 사라진다 (실측: 한 페이지 6문항 중 2문항 유실).
-  if (PAGE_NUMBER.test(span.text.trim())) {
-    // 강조되지 않은 숫자 — A-3의 역. 앵커가 될 수 없으니 쪽번호로 본다
-    if (!span.bold && span.fontSize < fontMedian * EMPHASIS_RATIO) return true
-    // 크게 조판된 쪽번호도 있다. 그때는 "같은 자리, 바뀌는 값"으로 가른다
-    return chrome.pageNumberSpots.has(spotKey(span.bbox))
-  }
-
-  const key = bandKey(span.bbox, span.text)
-  return key !== null && chrome.lines.has(key)
+  if (!PAGE_NUMBER.test(span.text.trim())) return false
+  // 강조되지 않은 숫자 — A-3의 역. 앵커가 될 수 없으니 쪽번호로 본다
+  if (!span.bold && span.fontSize < fontMedian * EMPHASIS_RATIO) return true
+  // 크게 조판된 쪽번호도 있다. 그때는 "같은 자리, 바뀌는 값"으로 가른다
+  return chrome.pageNumberSpots.has(spotKey(span.bbox))
 }
 
 type ColumnSplit = { boundary: number | null; ambiguous: boolean }

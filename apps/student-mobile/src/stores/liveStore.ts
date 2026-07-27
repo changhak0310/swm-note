@@ -6,7 +6,7 @@
 //   - 문서 레코드를 만들지 않는다. 필기만 `live:{파일명}` 키로 저장돼 같은 파일을
 //     다시 열면 이어서 쓴다. 노트 목록에는 나오지 않는다.
 import { create } from 'zustand'
-import type { Box, Region } from '../types'
+import type { Box, ChoiceLabel, Region } from '../types'
 import * as db from '../lib/db'
 import { MAX_W } from '../lib/geometry'
 import type { LiveMarks } from '../lib/liveDetect'
@@ -22,7 +22,15 @@ import { pageInput, toAppRegions } from '../lib/psp/adapter'
 import type { PageInput } from '../lib/psp/types'
 import type { Raster } from '../lib/scan/components'
 import { detectScan } from '../lib/scan/detect'
-import { scanRegions } from '../lib/scan/regions'
+import {
+  labelsFromMarkerReads,
+  pxRect,
+  readMarkerDigit,
+  readNumber,
+  type OcrRead,
+} from '../lib/scan/ocr'
+import { reconcileNumbering, type NumberRead } from '../lib/scan/numbering'
+import { scanRegions, type ScanRegionResult } from '../lib/scan/regions'
 import { segmentPage } from '../lib/segment'
 import { useInkStore } from './inkStore'
 
@@ -87,8 +95,9 @@ type LiveState = {
   /**
    * regionId → 문제 번호 자리를 잘라낸 그림 (dataURL).
    *
-   * 스캔본은 번호의 값을 읽지 않는다. 대신 "무엇을 번호로 봤는지"를 그 자리 픽셀
-   * 그대로 보여준다 — 잘못 잡았으면 눈에 바로 띈다. 텍스트 PDF에는 numLabel이 있어 필요 없다.
+   * 스캔본 배지의 최초 표기이자 OCR 실패 시의 폴백이다. 번호 값은 뒤이어 숫자 OCR이
+   * numLabel로 채우는데(fillNumberLabels), 그 전에도·못 읽어도 "무엇을 번호로 봤는지"는
+   * 그 자리 픽셀 그대로 보여준다 — 잘못 잡았으면 눈에 바로 띈다. 텍스트 PDF에는 필요 없다.
    */
   numCrops: Record<string, string>
   loading: boolean
@@ -151,7 +160,7 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         loading: false,
         message:
           mode === 'scan'
-            ? '텍스트가 없는 스캔본이야. 펜이 닿으면 그 쪽 이미지에서 번호 자리와 ①~⑤를 찾아 — 번호의 값(0109 같은)은 읽지 않아.'
+            ? '텍스트가 없는 스캔본이야. 펜이 닿으면 그 쪽 이미지에서 번호 자리와 ①~⑤를 찾고, 번호 값(0109 같은)은 숫자 OCR로 읽어 배지에 띄워.'
             : null,
       })
     } catch (e) {
@@ -221,7 +230,7 @@ async function analyze(page: number, set: SetState, get: GetState) {
     if (mode === 'scan') {
       const raster = await renderPageBitmap(pdf, page, SCAN_WIDTH)
       const layout = detectScan(raster)
-      const { regions, synthesizedHeadings } = scanRegions(layout, raster, docKey, page)
+      const { regions, synthesizedHeadings, markerRects } = scanRegions(layout, raster, docKey, page)
 
       // 번호 값을 못 읽는 대신 번호 자리를 잘라 둔다 — 배지에 그대로 띄운다
       const crops: Record<string, string> = {}
@@ -241,6 +250,9 @@ async function analyze(page: number, set: SetState, get: GetState) {
           ? `번호를 못 찾아 선지 위치로 대신한 문항 ${synthesizedHeadings}개`
           : undefined,
       })
+      // OCR 보정은 뒤에서 돈다 — 첫 OCR은 모델을 내려받아 수 초가 걸릴 수 있고,
+      // 그동안에도 선지 판정과 크롭 배지는 이미 동작해야 한다
+      if (regions.length) void refineScanRegions(raster, regions, markerRects, docKey, page, set)
       return
     }
 
@@ -287,8 +299,12 @@ async function runDocPass(
 ): Promise<DocPass> {
   const inputs: PageInput[] = []
   for (let p = 1; p <= pageCount; p++) {
-    // withFigures=false — operator list 파싱은 느리다. 선지 판정에 도형은 필요 없다
-    inputs.push(await pageInput(pdf, p, false))
+    // ★ 도형을 함께 읽는다. 예전에는 "선지 판정에 도형은 필요 없다"며 껐는데
+    //   실측에서 뒤집혔다 — 단 구분선이 도형으로 오고, 그 선이 없으면 단 판정이
+    //   히스토그램으로 떨어져 애매해진다. 수능 20p에서 문항 46→38, 객관식 33→26으로
+    //   줄었다(선지 박스가 통째로 안 붙는 문항 7개). 값은 쪽당 ~11ms이고 통독은
+    //   첫 접촉 때 한 번뿐이라, 문항을 잃는 것보다 싸다.
+    inputs.push(await pageInput(pdf, p, true))
   }
 
   const byPage = new Map<number, Region[]>()
@@ -302,6 +318,72 @@ async function runDocPass(
   } catch (e) {
     return { byPage, error: e instanceof Error ? e.message : String(e) }
   }
+}
+
+/**
+ * 스캔 분석 결과를 숫자 OCR로 보정한다 — 펜이 닿은 페이지만 온다.
+ *
+ * 두 가지를 한다:
+ *   1. 선지 라벨 교정 — 선지가 5개 미만으로 잡힌 그룹은 마커를 놓쳤을 수 있다
+ *      (한국 문제집은 사실상 전부 5지선다). 그때 순서 기반 라벨은 통째로 밀려
+ *      인쇄된 ③에 쳐도 ②로 읽힌다. 링 안의 숫자를 읽어 인쇄값에 맞춘다.
+ *      5개 완비 그룹은 건드리지 않는다 — 순서가 곧 인쇄값이다 (OCR 대조 실측 155/155).
+ *   2. 번호 값 — 문항 순서대로 읽어 수열로 검산한다(scan/numbering.ts). 정해진 문항만
+ *      numLabel이 붙어 배지가 "0109번 ·"으로 바뀌고, 못 정한 문항은 크롭 그림 배지
+ *      그대로다. 번호 자리를 마커로 대신한 문항(numSynth)은 건너뛴다 — 그 크롭은
+ *      선지 번호지 문제 번호가 아니다.
+ */
+async function refineScanRegions(
+  raster: Raster,
+  regions: Region[],
+  markerRects: ScanRegionResult['markerRects'],
+  docKey: string,
+  page: number,
+  set: SetState,
+) {
+  const relabels: Record<string, Region['choices']> = {}
+  const numLabels: Record<string, string> = {}
+  try {
+    for (const r of regions) {
+      if (r.answerType !== 'choice' || r.choices.length >= 5) continue
+      const rects = markerRects[r.id]
+      if (!rects || rects.length !== r.choices.length) continue
+      const reads: (OcrRead | null)[] = []
+      for (const rect of rects) reads.push(await readMarkerDigit(raster, rect))
+      const labels = labelsFromMarkerReads(reads)
+      if (labels && labels.some((v, i) => v !== r.choices[i].label)) {
+        relabels[r.id] = r.choices.map((c, i) => ({ ...c, label: labels[i] as ChoiceLabel }))
+      }
+    }
+
+    // 번호는 한 자리씩 판단하지 않는다 — 문항 순서대로 읽어 수열로 검산한다.
+    // 자신 없는 자리는 이웃이 세운 수열이 메운다 (scan/numbering.ts)
+    const numbered = regions.filter((r) => r.numBox && !r.numSynth)
+    const reads: NumberRead[] = []
+    for (const r of numbered) reads.push(await readNumber(raster, pxRect(raster, r.numBox!)))
+    const { labels } = reconcileNumbering(reads)
+    for (let i = 0; i < numbered.length; i++) {
+      if (labels[i]) numLabels[numbered[i].id] = labels[i]!
+    }
+  } catch {
+    // 워커·모델 로드 실패(오프라인 등) — 순서 라벨과 크롭 배지로 충분하다
+  }
+  if (Object.keys(relabels).length === 0 && Object.keys(numLabels).length === 0) return
+
+  set((s) => {
+    if (s.docKey !== docKey) return s
+    const a = s.pages[page]
+    if (!a) return s
+    const patched = a.regions.map((r) => {
+      if (!relabels[r.id] && !numLabels[r.id]) return r
+      return {
+        ...r,
+        ...(relabels[r.id] ? { choices: relabels[r.id] } : null),
+        ...(numLabels[r.id] ? { numLabel: numLabels[r.id] } : null),
+      }
+    })
+    return { pages: { ...s.pages, [page]: { ...a, regions: patched } } }
+  })
 }
 
 /**
