@@ -20,8 +20,24 @@ export type { PDFDocumentProxy }
 // (같은 캔버스에 렌더가 겹치면 pdf.js가 throw: "Cannot use the same canvas…")
 const activeRenders = new WeakMap<HTMLCanvasElement, { cancel(): void }>()
 
+/**
+ * CJK 폰트 자료 위치. `scripts/copy-pdfjs-assets.mjs`가 pdfjs-dist에서 public으로 복사한다.
+ *
+ * ★ 이게 없으면 CID 방식으로 한글을 담은 PDF가 통째로 무력해진다 — 글자가 추출도
+ *   렌더도 되지 않는다. 실측 `수학의 신 문제.pdf`: 한 쪽에서 한글 0자·원문자 0개였다가
+ *   cMap을 주자 237자·10개가 나왔고, 문서 전체 객관식 검출이 0 → 47로 올랐다.
+ *   pdf.js는 이때 콘솔에 "Ensure that the `cMapUrl` API parameter is provided"만 남기고
+ *   조용히 넘어가므로 눈치채기 어렵다.
+ */
+const PDFJS_ASSETS = `${import.meta.env.BASE_URL}pdfjs/`
+
 export async function loadPdf(data: ArrayBuffer): Promise<PDFDocumentProxy> {
-  return pdfjs.getDocument({ data }).promise
+  return pdfjs.getDocument({
+    data,
+    cMapUrl: `${PDFJS_ASSETS}cmaps/`,
+    cMapPacked: true,
+    standardFontDataUrl: `${PDFJS_ASSETS}standard_fonts/`,
+  }).promise
 }
 
 /**

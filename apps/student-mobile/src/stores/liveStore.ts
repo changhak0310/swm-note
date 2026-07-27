@@ -32,6 +32,7 @@ import {
 import { reconcileNumbering, type NumberRead } from '../lib/scan/numbering'
 import { scanRegions, type ScanRegionResult } from '../lib/scan/regions'
 import { segmentPage } from '../lib/segment'
+import { mergeRegions, verifyChoices, type PrintedMark } from '../lib/verify/merge'
 import { useInkStore } from './inkStore'
 
 /**
@@ -51,19 +52,6 @@ const SCAN_WIDTH = 1700
  * 2200에서 21개, 2800에서 30개, 3400에서 30개. 3400은 잡음까지 커져(문항 32→59) 손해다.
  */
 const VECTOR_SCAN_WIDTH = 2800
-
-/**
- * 텍스트 레이어를 무시하고 스캔 경로만 쓴다 — 브랜치 `feature/scan-only-recognition`의 실험.
- *
- * 두 경로를 하나로 줄이면 유지할 규칙이 반으로 준다. 다만 스캔 경로는 문제집 스캔본에
- * 맞춰 조정돼 있다 — 선지는 "정사각 링", 문제 번호는 "색을 띤 글자"로 찾는다. 텍스트 PDF를
- * 픽셀로 렌더하면 링은 그대로 잡히지만, 번호가 검정이면 색 조건에서 떨어져 번호 자리를
- * 첫 선지로 대신한다(numSynth) — 선지 판정은 살고 번호 배지만 잃는다.
- *
- * 실측 비교는 `npx vitest run scanonly` (scanonly.real.test.ts).
- * 되돌리려면 false로 두면 된다 — 텍스트 경로 코드는 그대로 살려 뒀다.
- */
-const SCAN_ONLY = true
 
 export type AnalysisStatus = 'idle' | 'running' | 'done' | 'empty' | 'failed'
 export type AnalysisSource = 'psp' | 'v1' | 'scan'
@@ -166,10 +154,10 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       }
 
       // 텍스트 레이어 유무가 분석 경로를 가른다 (스캔본은 픽셀에서 찾는다).
-      // SCAN_ONLY면 텍스트가 있어도 픽셀에서 찾는다 — 이 브랜치의 실험 (아래 주석).
-      // 다만 렌더 폭은 텍스트 유무로 정한다: 벡터는 더 크게 그려야 선지 링이 살아난다
+      // 텍스트 레이어가 쓸 만하면 1단(텍스트)을 쓴다. 어느 쪽이든 3단(픽셀)은 항상 돈다.
+      // 렌더 폭은 원본 성격으로 정한다: 벡터는 더 크게 그려야 선지 링이 살아난다
       const vector = await hasTextLayer(pdf)
-      const mode: AnalysisMode = SCAN_ONLY || !vector ? 'scan' : 'text'
+      const mode: AnalysisMode = vector ? 'text' : 'scan'
       scanWidth = vector ? VECTOR_SCAN_WIDTH : SCAN_WIDTH
 
       livePdf = pdf
@@ -188,11 +176,9 @@ export const useLiveStore = create<LiveState>((set, get) => ({
         numCrops: {},
         loading: false,
         message:
-          mode !== 'scan'
-            ? null
-            : SCAN_ONLY
-              ? '스캔 경로로만 분석해. 텍스트 레이어가 있어도 쓰지 않고, 펜이 닿은 쪽 이미지에서 ①~⑤ 링과 번호 자리를 직접 찾아.'
-              : '텍스트가 없는 스캔본이야. 펜이 닿으면 그 쪽 이미지에서 번호 자리와 ①~⑤를 찾고, 번호 값(0109 같은)은 숫자 OCR로 읽어 배지에 띄워.',
+          mode === 'scan'
+            ? '텍스트가 없는 스캔본이야. 펜이 닿으면 그 쪽 이미지에서 ①~⑤ 링과 번호 자리를 찾고, 번호 값(0109 같은)은 숫자 OCR로 읽어 배지에 띄워.'
+            : null,
       })
     } catch (e) {
       set({
@@ -256,63 +242,71 @@ async function analyze(page: number, set: SetState, get: GetState) {
 
   const t0 = performance.now()
   try {
-    // ---------- 스캔 경로 ----------
-    // 페이지마다 독립이다. 픽셀 검출은 이웃 페이지를 볼 이유가 없어 통독하지 않는다
-    if (mode === 'scan') {
-      const raster = await renderPageBitmap(pdf, page, scanWidth)
-      const layout = detectScan(raster)
-      const { regions, synthesizedHeadings, markerRects } = scanRegions(layout, raster, docKey, page)
-
-      // 번호 값을 못 읽는 대신 번호 자리를 잘라 둔다 — 배지에 그대로 띄운다
-      const crops: Record<string, string> = {}
-      for (const r of regions) {
-        if (!r.numBox) continue
-        const url = cropDataUrl(raster, r.numBox)
-        if (url) crops[r.id] = url
+    // ---------- 1단 · 텍스트 ----------
+    // 텍스트 레이어가 쓸 만하면 조판 좌표를 그대로 읽는다. 첫 접촉에서 문서를 통독한다
+    // (PSP의 판단 근거 절반이 문서 전체 통계다). 두 페이지를 동시에 건드려도 통독은 한 번.
+    let textRegions: Region[] = []
+    let passError: string | undefined
+    if (mode === 'text') {
+      docPass ??= runDocPass(pdf, docKey, pageCount)
+      const pass = await docPass
+      passError = pass.error
+      textRegions = pass.byPage.get(page) ?? []
+      // 폴백은 PSP가 문서째로 실패했을 때만이다. 통독이 성공했는데 이 쪽에 문항이
+      // 없다면 그건 실패가 아니라 답이다 — 표지·목차·개념정리·해설이 그렇다.
+      if (pass.error) {
+        const v1 = segmentPage(docKey, page, await getPageLines(pdf, page))
+        if (v1.length) textRegions = v1
       }
+    }
+
+    // ---------- 3단 · 픽셀 ----------
+    // 텍스트와 완전히 독립한 신호다. 텍스트 경로가 놓친 문항을 여기서 되찾는다 —
+    // 실측: hi_math +15문항, 수학의 신 +51문항(47→98). 되찾은 선지의 91~95%가
+    // 인쇄된 ①~⑤ 자리와 일치했다(2단 검증). 페이지마다 독립이라 통독이 없다.
+    const raster = await renderPageBitmap(pdf, page, scanWidth)
+    const scan = scanRegions(detectScan(raster), raster, docKey, page)
+    // 텍스트가 있는 문서에서는 픽셀 쪽 주관식을 받지 않는다 — 그건 텍스트가 이미 봤고,
+    // 픽셀 경로의 주관식 판정은 번호에 의존해 헛문항을 만든다
+    const pixelRegions =
+      mode === 'text' ? scan.regions.filter((r) => r.choices.length >= 2) : scan.regions
+
+    // ---------- 2단 · 위치 검증 ----------
+    // 선지 박스가 인쇄된 기호 자리에 붙었는지 확인하고 어긋나면 고친다.
+    // 텍스트가 성하면 토큰 위치가 곧 정답이라 OCR보다 정확하고 공짜다.
+    // 텍스트가 없는 스캔본에서는 refineScanRegions의 링 숫자 OCR이 같은 일을 한다.
+    const merged = mergeRegions(textRegions, pixelRegions)
+    const marks = mode === 'text' ? await printedMarks(pdf, page) : []
+    const regions = merged.map((m) =>
+      marks.length ? verifyChoices(m.region, marks).region : m.region,
+    )
+
+    // 번호 값을 못 읽는 문항은 번호 자리를 잘라 배지에 그대로 띄운다
+    const crops: Record<string, string> = {}
+    for (const r of regions) {
+      if (!r.numBox || r.numLabel) continue
+      const url = cropDataUrl(raster, r.numBox)
+      if (url) crops[r.id] = url
+    }
+    if (Object.keys(crops).length) {
       set((s) => (s.docKey === docKey ? { numCrops: { ...s.numCrops, ...crops } } : s))
-
-      put({
-        status: regions.length ? 'done' : 'empty',
-        regions,
-        source: regions.length ? 'scan' : null,
-        ms: performance.now() - t0,
-        note: synthesizedHeadings
-          ? `번호를 못 찾아 선지 위치로 대신한 문항 ${synthesizedHeadings}개`
-          : undefined,
-      })
-      // OCR 보정은 뒤에서 돈다 — 첫 OCR은 모델을 내려받아 수 초가 걸릴 수 있고,
-      // 그동안에도 선지 판정과 크롭 배지는 이미 동작해야 한다
-      if (regions.length) void refineScanRegions(raster, regions, markerRects, docKey, page, set)
-      return
     }
 
-    // ---------- 텍스트 경로 ----------
-    // 첫 접촉이면 여기서 문서를 통독한다. 두 페이지를 동시에 건드려도 통독은 한 번이다
-    docPass ??= runDocPass(pdf, docKey, pageCount)
-    const pass = await docPass
-
-    let regions = pass.byPage.get(page) ?? []
-    let source: AnalysisSource | null = regions.length ? 'psp' : null
-
-    // 폴백은 PSP가 문서째로 실패했을 때만이다. 통독이 성공했는데 이 쪽에 문항이
-    // 없다면 그건 실패가 아니라 답이다 — 표지·목차·개념정리·해설이 그렇다.
-    // (실측 hi_math 51쪽 중 문항 페이지는 24쪽뿐) 거기에 v1을 덧대면 없는 문항이 생긴다.
-    if (pass.error) {
-      const v1 = segmentPage(docKey, page, await getPageLines(pdf, page))
-      if (v1.length) {
-        regions = v1
-        source = 'v1'
-      }
-    }
-
+    const fromPixel = merged.filter((m) => m.source === 'pixel').length
     put({
       status: regions.length ? 'done' : 'empty',
       regions,
-      source,
+      source: regions.length ? (mode === 'text' ? 'psp' : 'scan') : null,
       ms: performance.now() - t0,
-      note: pass.error,
+      note:
+        passError ??
+        (fromPixel ? `텍스트가 놓쳐 픽셀에서 되찾은 문항 ${fromPixel}개` : undefined),
     })
+
+    // 번호 값·선지 라벨 OCR은 뒤에서 돈다 — 첫 OCR은 모델을 내려받아 수 초가 걸릴 수
+    // 있고, 그동안에도 선지 판정과 크롭 배지는 이미 동작해야 한다
+    const needOcr = regions.filter((r) => !r.numLabel)
+    if (needOcr.length) void refineScanRegions(raster, needOcr, scan.markerRects, docKey, page, set)
   } catch (e) {
     put({
       ...IDLE_ANALYSIS,
@@ -321,6 +315,22 @@ async function analyze(page: number, set: SetState, get: GetState) {
       note: e instanceof Error ? e.message : String(e),
     })
   }
+}
+
+const CIRCLED = '①②③④⑤'
+
+/** 그 쪽에 인쇄된 선지 기호들 — 텍스트 레이어에서 그대로 읽는다 (2단 위치 검증의 기준) */
+async function printedMarks(pdf: PDFDocumentProxy, page: number): Promise<PrintedMark[]> {
+  const out: PrintedMark[] = []
+  for (const line of await getPageLines(pdf, page)) {
+    for (const t of line.tokens) {
+      for (const ch of t.str) {
+        const i = CIRCLED.indexOf(ch)
+        if (i >= 0) out.push({ label: i + 1, box: t.box })
+      }
+    }
+  }
+  return out
 }
 
 async function runDocPass(
