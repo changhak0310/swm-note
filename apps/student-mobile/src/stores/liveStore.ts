@@ -42,6 +42,29 @@ import { useInkStore } from './inkStore'
  */
 const SCAN_WIDTH = 1700
 
+/**
+ * 벡터 PDF를 스캔 경로로 볼 때의 렌더 폭.
+ *
+ * 스캔본은 이미 거친 픽셀이라 1700이면 선지 링이 25~30px로 잡히지만, 벡터 PDF를 그
+ * 폭으로 렌더하면 링 획이 1px 아래로 깎여 잉크 문턱을 못 넘는다 — 실측 hi_math p15의
+ * 선지 30개 중 엄격 마스크 1개·느슨 마스크 8개만 링으로 잡혔다. 폭을 올리면 살아난다:
+ * 2200에서 21개, 2800에서 30개, 3400에서 30개. 3400은 잡음까지 커져(문항 32→59) 손해다.
+ */
+const VECTOR_SCAN_WIDTH = 2800
+
+/**
+ * 텍스트 레이어를 무시하고 스캔 경로만 쓴다 — 브랜치 `feature/scan-only-recognition`의 실험.
+ *
+ * 두 경로를 하나로 줄이면 유지할 규칙이 반으로 준다. 다만 스캔 경로는 문제집 스캔본에
+ * 맞춰 조정돼 있다 — 선지는 "정사각 링", 문제 번호는 "색을 띤 글자"로 찾는다. 텍스트 PDF를
+ * 픽셀로 렌더하면 링은 그대로 잡히지만, 번호가 검정이면 색 조건에서 떨어져 번호 자리를
+ * 첫 선지로 대신한다(numSynth) — 선지 판정은 살고 번호 배지만 잃는다.
+ *
+ * 실측 비교는 `npx vitest run scanonly` (scanonly.real.test.ts).
+ * 되돌리려면 false로 두면 된다 — 텍스트 경로 코드는 그대로 살려 뒀다.
+ */
+const SCAN_ONLY = true
+
 export type AnalysisStatus = 'idle' | 'running' | 'done' | 'empty' | 'failed'
 export type AnalysisSource = 'psp' | 'v1' | 'scan'
 
@@ -64,6 +87,8 @@ export const IDLE_ANALYSIS: PageAnalysis = { status: 'idle', regions: [], source
 
 // PDF 프록시는 직렬화 불가 — 상태가 아니라 모듈 캐시로 둔다 (documentStore와 같은 이유)
 let livePdf: PDFDocumentProxy | null = null
+/** 이 문서의 스캔 렌더 폭 — 파일을 열 때 정해진다 (벡터인지 스캔본인지에 따라) */
+let scanWidth = SCAN_WIDTH
 
 export function getLivePdf(): PDFDocumentProxy | null {
   return livePdf
@@ -141,8 +166,11 @@ export const useLiveStore = create<LiveState>((set, get) => ({
       }
 
       // 텍스트 레이어 유무가 분석 경로를 가른다 (스캔본은 픽셀에서 찾는다).
-      // SCAN_ONLY면 텍스트가 있어도 픽셀에서 찾는다 — 이 브랜치의 실험 (아래 주석)
-      const mode: AnalysisMode = SCAN_ONLY || !(await hasTextLayer(pdf)) ? 'scan' : 'text'
+      // SCAN_ONLY면 텍스트가 있어도 픽셀에서 찾는다 — 이 브랜치의 실험 (아래 주석).
+      // 다만 렌더 폭은 텍스트 유무로 정한다: 벡터는 더 크게 그려야 선지 링이 살아난다
+      const vector = await hasTextLayer(pdf)
+      const mode: AnalysisMode = SCAN_ONLY || !vector ? 'scan' : 'text'
+      scanWidth = vector ? VECTOR_SCAN_WIDTH : SCAN_WIDTH
 
       livePdf = pdf
       docPass = null
@@ -231,7 +259,7 @@ async function analyze(page: number, set: SetState, get: GetState) {
     // ---------- 스캔 경로 ----------
     // 페이지마다 독립이다. 픽셀 검출은 이웃 페이지를 볼 이유가 없어 통독하지 않는다
     if (mode === 'scan') {
-      const raster = await renderPageBitmap(pdf, page, SCAN_WIDTH)
+      const raster = await renderPageBitmap(pdf, page, scanWidth)
       const layout = detectScan(raster)
       const { regions, synthesizedHeadings, markerRects } = scanRegions(layout, raster, docKey, page)
 
