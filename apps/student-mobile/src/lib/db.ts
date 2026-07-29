@@ -1,6 +1,7 @@
 // IndexedDB 접근 (§4 스토어 정의, §8 저장 전략)
 // 스트로크는 페이지 단위로 묶어 저장한다 — 획 단위 레코드는 조회가 번거롭다.
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import type { LabelPack } from './labelPack'
 import type {
   AnswerKey,
   Attempt,
@@ -35,12 +36,19 @@ interface PuriDB extends DBSchema {
   }
   retryLists: { key: string; value: RetryList }
   attemptState: { key: string; value: AttemptState }
+  /**
+   * 라벨 팩 — 사람이 확인한 골든셋 (§11).
+   *
+   * ★ 키가 **내용 해시**다. 파일명이 아니다. 이름은 바뀌고, 다른 책이 같은 이름일 수 있다.
+   *   잘못 앉은 라벨은 검출 실패보다 나쁘므로 신원 확인이 헐거우면 안 된다.
+   */
+  goldenPacks: { key: string; value: LabelPack }
 }
 
 let dbPromise: Promise<IDBPDatabase<PuriDB>> | null = null
 
 export function getDB(): Promise<IDBPDatabase<PuriDB>> {
-  dbPromise ??= openDB<PuriDB>('puri', 2, {
+  dbPromise ??= openDB<PuriDB>('puri', 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         const documents = db.createObjectStore('documents', { keyPath: 'id' })
@@ -64,6 +72,10 @@ export function getDB(): Promise<IDBPDatabase<PuriDB>> {
       if (oldVersion < 2) {
         // v2: 문제별 회차 (F-09)
         db.createObjectStore('attemptState', { keyPath: 'docId' })
+      }
+      if (oldVersion < 3) {
+        // v3: 라벨 팩 (§11) — 키는 내용 해시
+        db.createObjectStore('goldenPacks', { keyPath: 'sourceHash' })
       }
     },
   })
@@ -135,6 +147,24 @@ export async function putRetryList(list: RetryList) {
 
 export async function getRetryList(docId: string) {
   return (await getDB()).get('retryLists', docId)
+}
+
+// ---------- goldenPacks (라벨 팩) ----------
+
+export async function putGoldenPack(pack: LabelPack) {
+  await (await getDB()).put('goldenPacks', pack)
+}
+
+export async function getGoldenPack(sourceHash: string) {
+  return (await getDB()).get('goldenPacks', sourceHash)
+}
+
+export async function listGoldenPacks(): Promise<LabelPack[]> {
+  return (await getDB()).getAll('goldenPacks')
+}
+
+export async function deleteGoldenPack(sourceHash: string) {
+  await (await getDB()).delete('goldenPacks', sourceHash)
 }
 
 // ---------- attemptState (문제별 회차) ----------

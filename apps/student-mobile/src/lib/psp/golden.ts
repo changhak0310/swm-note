@@ -7,22 +7,41 @@
 import type { Box, ChoiceLabel, Region as AppRegion } from '../../types'
 import { boxIou } from './compare'
 
-export const GOLDEN_FORMAT = 1
+export const GOLDEN_FORMAT = 3
+/** 읽어 줄 수 있는 형식 — v1은 kind가 없는 것으로 올려 읽는다 */
+const READABLE_FORMATS = [1, 2, 3]
 
 export type GoldenChoice = { label: ChoiceLabel; box: Box }
+
+/**
+ * 문항 유형. `choices`가 비었다는 것만으로는 주관식인지 "아직 선지를 안 그렸는지"
+ * 알 수 없어 M2(객관식 판정)를 잴 수 없었다. 그 둘을 가르는 것이 이 필드다.
+ * 없으면 "유형 미지정" — M2 분모에서 빠진다.
+ */
+export type GoldenKind = 'choice' | 'subjective'
 
 export type GoldenBox = {
   id: string
   page: number              // 1-based
   number: string
   bbox: Box
-  /** 비어 있으면 "선지를 라벨링하지 않았다" — 주관식이라는 뜻이 아니다 */
+  kind?: GoldenKind
+  /** 비어 있으면 "선지를 라벨링하지 않았다" — 주관식이라는 뜻이 아니다 (그건 kind가 말한다) */
   choices: GoldenChoice[]
 }
 
 export type GoldenSet = {
   format: number
   source: string            // 파일명
+  /** 원본 PDF의 내용 해시 — 라벨과 파일이 짝인지 확인한다 (코퍼스는 리포에 없다) */
+  sourceHash?: string
+  /**
+   * 쪽 지문 (index = 쪽−1). 같은 책의 **다른 파일**에 라벨을 붙일 때 쓴다 (§11.3 L1).
+   *
+   * 해시(L0)는 바이트가 하나만 달라도 안 맞는다. 재압축·재다운로드·표지 잘림은 흔하고,
+   * 그때도 조판은 그대로라 쪽 그림으로 짝을 찾을 수 있다. 없으면 L0만 쓴다.
+   */
+  pageFingerprints?: (string | null)[]
   pageCount: number
   /**
    * 사람이 확인을 끝낸 페이지 (1-based).
@@ -51,13 +70,19 @@ export function emptyGolden(source: string, pageCount: number): GoldenSet {
 export function parseGolden(text: string): GoldenSet {
   const raw = JSON.parse(text) as Partial<GoldenSet>
   if (!raw || typeof raw !== 'object') throw new Error('골든셋 형식이 아닙니다.')
-  if (raw.format !== GOLDEN_FORMAT) throw new Error(`지원하지 않는 형식 버전: ${raw.format}`)
+  if (!READABLE_FORMATS.includes(Number(raw.format))) {
+    throw new Error(`지원하지 않는 형식 버전: ${raw.format}`)
+  }
   if (!Array.isArray(raw.boxes) || !Array.isArray(raw.reviewedPages)) {
     throw new Error('boxes / reviewedPages가 없습니다.')
   }
   return {
     format: GOLDEN_FORMAT,
     source: String(raw.source ?? ''),
+    ...(raw.sourceHash ? { sourceHash: String(raw.sourceHash) } : {}),
+    ...(Array.isArray(raw.pageFingerprints)
+      ? { pageFingerprints: raw.pageFingerprints.map((f) => (typeof f === 'string' ? f : null)) }
+      : {}),
     pageCount: Number(raw.pageCount ?? 0),
     reviewedPages: raw.reviewedPages.map(Number).filter(Number.isFinite),
     boxes: raw.boxes.filter(isGoldenBox),
@@ -112,6 +137,13 @@ export type GoldenScore = {
   numberAccuracy: number
   /** 선지가 라벨링된 문항에 대한 AC-2 — 라벨 개수를 전부 맞힌 비율 */
   choiceRecall: number | null
+  /**
+   * M0 — 문항 쪽 / 비문항 쪽(표지·개념·해설) 판정 정확도.
+   * "구역을 하나라도 냈는가"와 "정답에 구역이 있는가"를 견준다. 해설 쪽 오검출이 여기서 드러난다.
+   */
+  pageTypeAccuracy: number
+  /** M2 — 객관식/주관식 판정 정확도. kind가 적힌 문항만 분모에 든다 (없으면 null) */
+  choiceTypeAccuracy: number | null
   perPage: PageScore[]
 }
 
@@ -139,14 +171,19 @@ export function scoreAgainstGolden(
   let numberHit = 0
   let choiceLabelled = 0
   let choiceHit = 0
+  let pageTypeHit = 0
+  let kindLabelled = 0
+  let kindHit = 0
 
   for (const page of [...reviewed].sort((a, b) => a - b)) {
     const g = goldByPage.get(page) ?? []
     const p = predByPage.get(page) ?? []
     goldenCount += g.length
     predCount += p.length
+    // M0 — 문항 쪽인가 아닌가. 개수가 아니라 유무만 본다
+    if (g.length > 0 === p.length > 0) pageTypeHit++
 
-    const pairs = greedyMatch(g, p)
+    const pairs = matchRegions(g, p)
     let pageHit = 0
     let pageIouSum = 0
 
@@ -161,6 +198,12 @@ export function scoreAgainstGolden(
         if (g[gi].choices.length > 0) {
           choiceLabelled++
           if (matchesChoices(g[gi].choices, p[pi].choices, iouThreshold)) choiceHit++
+        }
+        // M2 — 유형을 적어 둔 문항만. 짝을 못 지은 문항은 M1이 이미 벌점을 줬다
+        if (g[gi].kind) {
+          kindLabelled++
+          const predIsChoice = p[pi].answerType === 'choice' && p[pi].choices.length > 0
+          if (predIsChoice === (g[gi].kind === 'choice')) kindHit++
         }
       }
     }
@@ -199,6 +242,8 @@ export function scoreAgainstGolden(
     misses,
     numberAccuracy: hit ? numberHit / hit : 0,
     choiceRecall: choiceLabelled ? choiceHit / choiceLabelled : null,
+    pageTypeAccuracy: reviewed.size ? pageTypeHit / reviewed.size : 0,
+    choiceTypeAccuracy: kindLabelled ? kindHit / kindLabelled : null,
     perPage,
   }
 }
@@ -207,7 +252,7 @@ export function scoreAgainstGolden(
  * IoU가 큰 쌍부터 욕심껏 짝짓는다.
  * 문항 구역은 서로 겹치지 않으므로(INV-2) 최적 매칭과 사실상 같은 결과가 나온다.
  */
-function greedyMatch(
+export function matchRegions(
   golden: GoldenBox[],
   predicted: AppRegion[],
 ): { gi: number; pi: number; iou: number }[] {

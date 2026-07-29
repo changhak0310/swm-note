@@ -11,6 +11,7 @@ import { MAX_W } from '../geometry'
 import { extractLines } from '../pdfText'
 import { runPipeline } from '../psp'
 import { pageInput, toAppRegions } from '../psp/adapter'
+import { openPdf } from './pdfDoc'
 import type { PageInput } from '../psp/types'
 import type { Point, Region, Stroke } from '../../types'
 
@@ -51,7 +52,7 @@ suite('실제 PDF 선지 판정', () => {
   it('모든 객관식 문항의 모든 선지를 하나씩 쳐 본다', async () => {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
     const data = new Uint8Array(readFileSync(PDF_PATH!))
-    const pdf = await pdfjs.getDocument({ data }).promise
+    const pdf = await openPdf(pdfjs, data)
 
     const inputs: PageInput[] = []
     // 앱(liveStore.runDocPass)과 같은 입력 — 도형 포함. 도형을 빼면 단 판정이 무너져

@@ -1,7 +1,10 @@
 // 필기 화면 (시안2 에디터) — 상단 바 + 펜 툴바 + 페이지 스택 + 채점 시트
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { findRegion, latestPerRegion, useDocumentStore } from '../stores/documentStore'
 import { useInkStore } from '../stores/inkStore'
+import { paths } from '../routes/paths'
+import { useGrade } from '../routes/useGrade'
 import { consecutiveCorrect } from '../lib/grading'
 import { Button, ReviewChecks, Timer } from '../design'
 import { PenToolbar } from './PenToolbar'
@@ -14,6 +17,7 @@ export function Editor() {
   const sheet = useDocumentStore((s) => s.sheet)
   const grading = useDocumentStore((s) => s.grading)
   const store = useDocumentStore.getState()
+  const navigate = useNavigate()
 
   if (!doc) return null
 
@@ -31,7 +35,7 @@ export function Editor() {
         <button
           aria-label="목록으로"
           className="grid h-11 w-11 place-items-center rounded-[10px] text-[color:var(--text-default)]"
-          onClick={() => store.closeDocument()}
+          onClick={() => void navigate(paths.list)}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
@@ -47,7 +51,7 @@ export function Editor() {
         )}
         <div className="flex-1" />
         <div className="flex items-center gap-[var(--space-2)]">
-          <Button variant="secondary" size="sm" onClick={store.openAnswers}>
+          <Button variant="secondary" size="sm" onClick={() => void navigate(paths.answers(doc.id))}>
             정답 입력
           </Button>
           {import.meta.env.DEV && (
@@ -217,6 +221,7 @@ function ResolveSheet() {
   const attemptsAll = useDocumentStore((s) => s.attemptsAll)
   const revealRegionId = useInkStore((s) => s.revealRegionId)
   const store = useDocumentStore.getState()
+  const grade = useGrade()
 
   // 재풀이 시간은 상대 신호 — 세션 한정, 저장하지 않는다
   const [sec, setSec] = useState(0)
@@ -295,7 +300,7 @@ function ResolveSheet() {
             3회 연속 정답 · 졸업
           </span>
         )}
-        <Button onClick={() => void store.grade()}>채점하기</Button>
+        <Button onClick={() => void grade()}>채점하기</Button>
       </div>
     </div>
   )

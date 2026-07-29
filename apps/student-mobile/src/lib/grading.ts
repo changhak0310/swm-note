@@ -1,12 +1,33 @@
 // 객관식 기하 판정 (§7.2)
 // 동그라미·빗금·체크·밑줄이 모두 "닫힌 고리 / 열린 마크" 한 규칙으로 처리된다.
 // 전제: 지우개는 스트로크 단위 — 픽셀 지우개면 지운 자국이 후보를 오염시킨다.
-import type { Attempt, AnswerEntry, Region, Stroke, Point, RetryList } from '../types'
+import type { Attempt, AnswerEntry, Box, Region, Stroke, Point, RetryList } from '../types'
 import { boxCenter, isClosedLoop, pointInPolygon, ratioInside, expand } from './geometry'
 
 // 열린 마크가 선지 박스와 이 비율 미만으로 겹치면 마크로 보지 않는다
 const MIN_OVERLAP = 0.25
-const CHOICE_PAD = 4
+
+/**
+ * 열린 마크를 볼 때 선지 박스를 넓히는 여유 — 학생은 박스보다 크게 긋는다.
+ *
+ * ★ 절대값과 상대값 중 **작은 쪽**을 쓴다. 예전에는 4(정규화 좌표) 고정이었는데, 선지 띠가
+ *   작은 조판에서는 사방 4씩 넓히면 상자가 배 이상 부풀어 **이웃 줄을 통째로 삼킨다.**
+ *   실측 수학의 신 p3: 3+2 배치의 띠 높이가 5.4인데 13.4가 되어, ④에 친 체크가 ①의 상자에도
+ *   100% 들어갔다. 그러면 겹침 비율이 둘 다 1.0이 되고, 동점 규칙이 없던 시절에는 먼저
+ *   순회한 낮은 번호가 이겨 ④→①·⑤→②로 읽혔다 (판정 기하 상한 99.83%의 정체).
+ *
+ *   상한 4는 그대로 두었다 — 짧은 변이 16 이상인 보통 크기 선지에서는 값이 4로 같아
+ *   기존 동작이 바뀌지 않는다. 작은 띠에서만 줄어든다.
+ */
+const CHOICE_PAD_MAX = 4
+const CHOICE_PAD_RATIO = 0.25
+
+function choicePad(box: Box): number {
+  return Math.min(CHOICE_PAD_MAX, Math.min(box.w, box.h) * CHOICE_PAD_RATIO)
+}
+
+/** 겹침 비율이 이 안에서 같으면 동점으로 본다 */
+const RATIO_EPS = 1e-6
 
 export function detectChoice(region: Region, strokes: Stroke[]): number | null {
   const candidates: { label: number; at: number }[] = []
@@ -43,12 +64,25 @@ function choiceInsideLoop(pts: Point[], choices: Region['choices']): number | nu
 }
 
 function choiceByOverlap(pts: Point[], choices: Region['choices']): number | null {
-  let best: { label: number; ratio: number } | null = null
+  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
+  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
+
+  let best: { label: number; ratio: number; d: number } | null = null
   for (const c of choices) {
-    const ratio = ratioInside(pts, expand(c.box, CHOICE_PAD))
-    if (ratio >= MIN_OVERLAP && (!best || ratio > best.ratio)) {
-      best = { label: c.label, ratio }
-    }
+    const ratio = ratioInside(pts, expand(c.box, choicePad(c.box)))
+    if (ratio < MIN_OVERLAP) continue
+    // 판정점은 기호와 박스 중심 둘 다 본다 — choiceInsideLoop과 같은 규약
+    const sym = { x: c.box.x + Math.min(c.box.h, c.box.w) / 2, y: c.box.y + c.box.h / 2 }
+    const mid = boxCenter(c.box)
+    const d = Math.min(Math.hypot(sym.x - cx, sym.y - cy), Math.hypot(mid.x - cx, mid.y - cy))
+    // ★ 동점이면 마크 중심에 가까운 쪽. 예전에는 순회 순서(= 번호 순)로 갈려, 여러 상자에
+    //   똑같이 걸친 마크가 **언제나 낮은 번호로** 읽혔다. 닫힌 고리 경로는 이미 거리로
+    //   가르고 있었다 — 열린 마크만 규칙이 달랐던 것이다
+    const better =
+      !best ||
+      ratio > best.ratio + RATIO_EPS ||
+      (Math.abs(ratio - best.ratio) <= RATIO_EPS && d < best.d)
+    if (better) best = { label: c.label, ratio, d }
   }
   return best ? best.label : null
 }

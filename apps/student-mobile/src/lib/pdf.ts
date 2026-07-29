@@ -16,27 +16,38 @@ pdfjs.GlobalWorkerOptions.workerPort = new Worker(
 
 export type { PDFDocumentProxy }
 
+/**
+ * 이미지를 그리는 연산자 코드. 페이지가 스캔 이미지 한 장인지(= 텍스트가 있어도 실은
+ * OCR 레이어가 얹힌 스캔본인지) 가려낼 때 쓴다 — 텍스트가 있다고 다 벡터 PDF는 아니다
+ * (lib/probe/vectorProbe.ts). 버전에 따라 없는 이름이 있어 undefined를 걸러낸다.
+ */
+export const IMAGE_OPS: readonly number[] = [
+  pdfjs.OPS.paintImageXObject,
+  pdfjs.OPS.paintImageXObjectRepeat,
+  pdfjs.OPS.paintInlineImageXObject,
+  pdfjs.OPS.paintInlineImageXObjectGroup,
+  pdfjs.OPS.paintImageMaskXObject,
+].filter((v): v is number => typeof v === 'number')
+
 // 캔버스별 진행 중 렌더 — 새 렌더 시작 전에 이전 것을 취소한다.
 // (같은 캔버스에 렌더가 겹치면 pdf.js가 throw: "Cannot use the same canvas…")
 const activeRenders = new WeakMap<HTMLCanvasElement, { cancel(): void }>()
 
-/**
- * CJK 폰트 자료 위치. `scripts/copy-pdfjs-assets.mjs`가 pdfjs-dist에서 public으로 복사한다.
- *
- * ★ 이게 없으면 CID 방식으로 한글을 담은 PDF가 통째로 무력해진다 — 글자가 추출도
- *   렌더도 되지 않는다. 실측 `수학의 신 문제.pdf`: 한 쪽에서 한글 0자·원문자 0개였다가
- *   cMap을 주자 237자·10개가 나왔고, 문서 전체 객관식 검출이 0 → 47로 올랐다.
- *   pdf.js는 이때 콘솔에 "Ensure that the `cMapUrl` API parameter is provided"만 남기고
- *   조용히 넘어가므로 눈치채기 어렵다.
- */
-const PDFJS_ASSETS = `${import.meta.env.BASE_URL}pdfjs/`
+// pdf.js 부속 자원 — vite.config.ts의 puri:pdfjs-assets가 public/pdfjs로 복사한다.
+//
+// ★ 넘기지 않으면 **한글이 통째로 안 보이는 PDF가 있다.** 미리 정의된 CMap을 쓰는 CID
+//   폰트(한국어 문제집의 UniKS-UCS2-H·Adobe-Korea1 계열)는 .bcmap을 받아야 글리프를
+//   찾는다. 못 받으면 그 폰트로 찍힌 글자만 빈칸이 되고, 임베드된 수식·숫자·라틴은
+//   멀쩡히 나온다 — 그래서 "PDF가 깨졌다"로 보인다 (실측 "수학의 신 문제.pdf" 2쪽).
+//   경로 끝의 `/`는 생략 불가다. pdf.js가 파일명을 그대로 이어 붙인다.
+const ASSETS = `${import.meta.env.BASE_URL}pdfjs/`
 
 export async function loadPdf(data: ArrayBuffer): Promise<PDFDocumentProxy> {
   return pdfjs.getDocument({
     data,
-    cMapUrl: `${PDFJS_ASSETS}cmaps/`,
+    cMapUrl: `${ASSETS}cmaps/`,
     cMapPacked: true,
-    standardFontDataUrl: `${PDFJS_ASSETS}standard_fonts/`,
+    standardFontDataUrl: `${ASSETS}standard_fonts/`,
   }).promise
 }
 

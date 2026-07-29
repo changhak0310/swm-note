@@ -6,6 +6,7 @@
 import { bodyFontSize, findCandidates, medianColumnWidth, resolveAnchors } from './anchor'
 import { layoutPages, probe, type PageLayout } from './layout'
 import { buildRegions } from './regions'
+import { dominantChoiceFamily } from './markerGroups'
 import { sliceProblems, type Slice } from './slice'
 import {
   PspError,
@@ -64,9 +65,10 @@ export function runPipeline(allPages: PageInput[], opts: PipelineOptions): Pipel
   // [LAYOUT]
   const layouts = stage('LAYOUT', () => layoutPages(pages))
 
+  const fontSize = bodyFontSize(layouts)
+
   // [ANCHOR]
   const { anchors, discarded } = stage('ANCHOR', () => {
-    const fontSize = bodyFontSize(layouts)
     const candidates = layouts.flatMap((l) => findCandidates(l, fontSize))
     if (candidates.length === 0) throw new PspError('ERR_NO_ANCHOR')
     return resolveAnchors(candidates, medianColumnWidth(layouts))
@@ -75,8 +77,14 @@ export function runPipeline(allPages: PageInput[], opts: PipelineOptions): Pipel
   // [SLICE]
   const slices = stage('SLICE', () => sliceProblems(anchors, layouts))
 
+  // 이 책이 선지에 쓰는 계열을 문서 전체에서 하나로 확정한다.
+  // 문항 단위로만 보면 소문항 ⑴⑵⑶⑷와 그림 라벨 ㉠~㉤이 선지가 된다 (markerGroups.ts)
+  const choiceFamily = stage('REGION', () => dominantChoiceFamily(layouts, fontSize))
+
   // [REGION] + [RENDER]
-  const problems = stage('REGION', () => slices.map((s) => toProblem(s, opts.jobId)))
+  const problems = stage('REGION', () =>
+    slices.map((s) => toProblem(s, opts.jobId, choiceFamily)),
+  )
 
   // [VERIFY]
   const report = stage('VERIFY', () => verify(problems, layouts))
@@ -93,11 +101,11 @@ export function runPipeline(allPages: PageInput[], opts: PipelineOptions): Pipel
   }
 }
 
-function toProblem(slice: Slice, jobId: string): Problem {
+function toProblem(slice: Slice, jobId: string, choiceFamily: string | null): Problem {
   // id는 결정적이어야 한다 — 재분할해도 정답·필기 귀속이 보존된다
   const id = `${jobId}:p${slice.pageIndex}:c${slice.columnIndex}:n${slice.anchor.numberText}`
   const bbox = clampBBox(slice.bbox)
-  const region = buildRegions({ ...slice, bbox }, id)
+  const region = buildRegions({ ...slice, bbox }, id, choiceFamily)
 
   const flags = [...region.flags]
   if (slice.spansBoundary) flags.push('FLAG_SPANS_BOUNDARY')

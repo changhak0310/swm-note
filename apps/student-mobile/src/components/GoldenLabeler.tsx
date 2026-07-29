@@ -3,10 +3,14 @@
 // 알고리즘 결과를 씨앗으로 깔고 사람이 고친다. 빈 화면에서 그리게 하면 50문항에
 // 한 시간이 넘게 걸리고, 그러면 골든셋이 영영 안 만들어진다.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useDocumentStore } from '../stores/documentStore'
+import { paths } from '../routes/paths'
 import { Button, Input } from '../design'
 import { MAX_W } from '../lib/geometry'
-import { loadPdf, renderPage, type PDFDocumentProxy } from '../lib/pdf'
+import { sha256Short } from '../lib/hash'
+import { DEFAULT_PASS, draftKey, loadDraft, saveDraft } from '../lib/goldenStore'
+import { hasTextLayer, loadPdf, renderPage, renderPageBitmap, type PDFDocumentProxy } from '../lib/pdf'
 import { runPipeline } from '../lib/psp'
 import { documentInput, toAppRegions } from '../lib/psp/adapter'
 import {
@@ -16,11 +20,18 @@ import {
   type GoldenChoice,
   type GoldenSet,
 } from '../lib/psp/golden'
-import type { Box, ChoiceLabel } from '../types'
+import { pageFingerprints } from '../lib/labelPack'
+import { detectScan } from '../lib/scan/detect'
+import { scanRegions } from '../lib/scan/regions'
+import type { Box, ChoiceLabel, Region } from '../types'
 
 const VIEW_W = 720
 const HANDLE = 7          // 정규화 좌표 기준 핸들 반변
 const MIN_SIZE = 6
+// 앱의 렌더 폭 (stores/liveStore.ts). 씨앗을 앱과 같은 픽셀에서 뽑아야
+// 라벨링하며 본 것과 채점하는 것이 같아진다
+const SCAN_WIDTH = 1700
+const VECTOR_SCAN_WIDTH = 2800
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se'
 
@@ -36,11 +47,24 @@ type Pt = { x: number; y: number }
 /** 선택 대상 — 문항 상자 또는 그 안의 선지 상자 */
 type Sel = { boxId: string; choice: ChoiceLabel | null }
 
-const storageKey = (source: string) => `puri.golden.${source}`
 
 export function GoldenLabeler() {
-  const close = useDocumentStore((s) => s.closeGolden)
+  const navigate = useNavigate()
+  const close = () => void navigate(paths.list)
   const toast = useDocumentStore((s) => s.showToast)
+
+  // 차수 — 같은 파일을 여러 벌 라벨할 수 있어야 IAA를 잴 수 있다 (lib/goldenStore.ts).
+  // ?pass=B 로 들어오면 그 차수를 편집한다
+  const [params, setParams] = useSearchParams()
+  const pass = params.get('pass') || DEFAULT_PASS
+  /**
+   * 초안 자동 배치.
+   *
+   * ★ **시드셋(§11.10 1단계)은 꺼 두고 라벨해야 한다.** 검출 결과를 초안으로 깔면 라벨이
+   *   검출기의 편향을 물려받아, M4가 "인쇄물과 맞는가"가 아니라 "검출기가 자기 자신과
+   *   맞는가"를 재게 된다. 규모를 늘리는 단계(4단계)에서만 켠다.
+   */
+  const [autoSeed, setAutoSeed] = useState(true)
 
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
   const [fileName, setFileName] = useState('')
@@ -51,6 +75,10 @@ export function GoldenLabeler() {
   const [seeded, setSeeded] = useState<Map<number, GoldenBox[]>>(new Map())
   const [busy, setBusy] = useState(false)
   const [choiceMode, setChoiceMode] = useState(false)
+  /** 이 문서에 텍스트 레이어가 있는가 — 스캔 씨앗의 렌더 폭을 가른다 */
+  const [vector, setVector] = useState(false)
+  /** 자동 씨앗을 이미 시도한 쪽. 검출이 0건인 쪽에서 무한 재시도를 막는다 */
+  const autoSeeded = useRef(new Set<number>())
 
   const canvas = useRef<HTMLCanvasElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -62,28 +90,48 @@ export function GoldenLabeler() {
     if (!file) return
     setBusy(true)
     try {
-      const doc = await loadPdf(await file.arrayBuffer())
+      const bytes = await file.arrayBuffer()
+      // ★ 해시를 먼저 뜬다. pdf.js는 넘긴 버퍼의 소유권을 가져가 detach 할 수 있다
+      const hash = await sha256Short(bytes)
+      const doc = await loadPdf(bytes)
       setPdf(doc)
       setFileName(file.name)
       setPage(1)
       setSel(null)
+      setVector(await hasTextLayer(doc))
+      autoSeeded.current = new Set()
 
-      const saved = localStorage.getItem(storageKey(file.name))
-      setGolden(saved ? parseGolden(saved) : emptyGolden(file.name, doc.numPages))
+      // ★ 임시 저장은 **파일명**으로 문다. 같은 이름의 다른 파일(재다운로드·재압축)을 열면
+      //   남의 라벨이 올라온다. 그때 새 해시를 덮어씌우면 그 라벨이 "이 파일의 정답"이라고
+      //   주장하게 되고, 런타임의 신원 확인(§11.3)이 통째로 무력해진다 — 좌표가 어긋난
+      //   라벨이 자신 있게 붙는 최악의 경우다.
+      //
+      //   그래서 어긋나면 **해시를 덮지 않는다.** 내보낸 라벨은 이 파일에 안 붙고,
+      //   점검 화면(/dev/quality ④)이 빨강으로 이유를 말한다. 조용히 틀리는 대신
+      //   눈에 보이게 실패시킨다.
+      const base = loadDraft(draftKey(file.name, pass)) ?? emptyGolden(file.name, doc.numPages)
+      const stale = !!base.sourceHash && base.sourceHash !== hash
+      if (stale) {
+        toast('저장된 라벨은 이름만 같은 다른 파일의 것이야. 해시를 덮지 않으니 확인해 줘.')
+      }
+      setGolden(stale ? base : { ...base, sourceHash: hash })
 
-      // PSP 결과를 씨앗으로 준비 — 페이지마다 "채우기"로 꺼내 쓴다
+      // 쪽 지문 — 같은 책의 다른 파일에도 라벨이 붙게 한다 (§11.3 L1).
+      // 아주 작게 렌더해 훑으므로 96쪽에 1~2초다. 라벨을 이미 만든 파일은 다시 뜨지 않는다
+      if (!stale && !base.pageFingerprints?.length) {
+        void pageFingerprints(doc, renderPageBitmap).then((fps) => {
+          setGolden((g) => (g && g.source === file.name ? { ...g, pageFingerprints: fps } : g))
+        })
+      }
+
+      // PSP 결과를 씨앗으로 준비 — 페이지마다 "채우기"로 꺼내 쓴다.
+      // 텍스트가 없는 스캔본에서는 아무것도 안 나온다. 그쪽은 seedPage가 픽셀에서 뽑는다
       try {
         const result = runPipeline(await documentInput(doc, true), { jobId: 'golden' })
         const byPage = new Map<number, GoldenBox[]>()
         for (const r of toAppRegions(result, 'golden')) {
           const arr = byPage.get(r.page) ?? []
-          arr.push({
-            id: `${r.page}-${r.numLabel}-${arr.length}`,
-            page: r.page,
-            number: r.numLabel ?? '',
-            bbox: r.bounds,
-            choices: r.choices.map((c) => ({ label: c.label, box: c.box })),
-          })
+          arr.push(toGoldenBox(r, `${r.page}-${r.numLabel}-${arr.length}`))
           byPage.set(r.page, arr)
         }
         setSeeded(byPage)
@@ -100,8 +148,8 @@ export function GoldenLabeler() {
   // 변경할 때마다 저장 — 실수로 닫아도 작업이 남는다
   useEffect(() => {
     if (!golden) return
-    localStorage.setItem(storageKey(golden.source), JSON.stringify(golden))
-  }, [golden])
+    saveDraft(draftKey(golden.source, pass), golden)
+  }, [golden, pass])
 
   useEffect(() => {
     if (!pdf || !canvas.current) return
@@ -153,8 +201,28 @@ export function GoldenLabeler() {
     }
   }, [sel, mutate])
 
-  const seedPage = useCallback(() => {
-    const src = seeded.get(page) ?? []
+  /**
+   * 이 페이지의 초안을 깐다.
+   *
+   * 텍스트 경로(PSP) 결과가 있으면 그것을, 없으면 **픽셀에서 직접 뽑는다.**
+   * 스캔본에는 PSP 씨앗이 아예 없어서, 이 갈래가 없으면 코퍼스 절반을 손으로 다
+   * 그려야 한다 — 선지 3천 개를 손으로 그리는 것은 계획이 아니다.
+   */
+  const seedPage = useCallback(async () => {
+    let src = seeded.get(page) ?? []
+    if (!src.length && pdf) {
+      setBusy(true)
+      try {
+        const raster = await renderPageBitmap(pdf, page, vector ? VECTOR_SCAN_WIDTH : SCAN_WIDTH)
+        const { regions } = scanRegions(detectScan(raster), raster, 'golden', page)
+        src = regions.map((r, i) => toGoldenBox(r, `${page}-scan-${i}`))
+      } catch {
+        src = []
+      } finally {
+        setBusy(false)
+      }
+    }
+    if (!src.length) return
     mutate((g) => ({
       ...g,
       boxes: [
@@ -163,7 +231,16 @@ export function GoldenLabeler() {
       ],
     }))
     setSel(null)
-  }, [seeded, page, mutate])
+  }, [seeded, page, mutate, pdf, vector])
+
+  // 빈 페이지에 들어오면 초안을 자동으로 깐다 — 사람이 하는 일이 "그리기"에서
+  // "훑어보고 Enter"로 바뀐다. 확인 완료한 쪽과 이미 그린 쪽은 건드리지 않는다
+  useEffect(() => {
+    if (!pdf || !golden || reviewed || busy || !autoSeed) return
+    if (boxes.length || autoSeeded.current.has(page)) return
+    autoSeeded.current.add(page)
+    void seedPage()
+  }, [pdf, golden, page, reviewed, busy, boxes.length, seedPage, autoSeed])
 
   const clearPage = useCallback(() => {
     mutate((g) => ({ ...g, boxes: g.boxes.filter((b) => b.page !== page) }))
@@ -334,8 +411,17 @@ export function GoldenLabeler() {
         case 'f':
         case 'F':
           e.preventDefault()
-          seedPage()
+          void seedPage()
           break
+        case 't':
+        case 'T': {
+          // 객관식 ↔ 주관식 뒤집기 — M2의 분모를 채우는 자리다
+          e.preventDefault()
+          if (!sel) break
+          const cur = golden.boxes.find((b) => b.id === sel.boxId)
+          if (cur) updateBox(cur.id, { kind: cur.kind === 'choice' ? 'subjective' : 'choice' })
+          break
+        }
         case 'c':
         case 'C':
           e.preventDefault()
@@ -348,7 +434,7 @@ export function GoldenLabeler() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [golden, page, gotoPage, setReviewed, removeSelected, seedPage])
+  }, [golden, page, gotoPage, setReviewed, removeSelected, seedPage, sel, updateBox])
 
   // ---------- 내보내기 ----------
 
@@ -385,6 +471,34 @@ export function GoldenLabeler() {
         {fileName && (
           <span className="text-[13px] text-[color:var(--text-muted)]">{fileName}</span>
         )}
+        <div className="flex items-center gap-1 text-[13px]">
+          <span className="text-[color:var(--text-muted)]">차수</span>
+          {['A', 'B'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setParams(v === DEFAULT_PASS ? {} : { pass: v })}
+              title={
+                v === DEFAULT_PASS
+                  ? '1차 라벨'
+                  : '2차 라벨 — IAA를 재려면 A를 보지 않고 독립으로 라벨해야 한다'
+              }
+              className={`h-7 w-7 rounded-[6px] text-[13px] font-semibold ${
+                pass === v
+                  ? 'bg-[var(--grade-tri-bg)] text-[color:var(--grade-tri)]'
+                  : 'bg-[var(--ink-100)] text-[color:var(--text-muted)]'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+        <label
+          className="flex items-center gap-1 text-[13px] text-[color:var(--text-muted)]"
+          title="시드셋(첫 20~25쪽)은 꺼 두고 라벨해야 라벨이 검출기 편향을 물려받지 않는다"
+        >
+          <input type="checkbox" checked={autoSeed} onChange={(e) => setAutoSeed(e.target.checked)} />
+          초안 자동
+        </label>
         <div className="ml-auto flex items-center gap-[var(--space-2)]">
           <FileButton accept="application/pdf" onPick={openPdf} label="PDF 열기" primary />
           <FileButton accept="application/json" onPick={importJson} label="JSON 가져오기" />
@@ -509,8 +623,8 @@ export function GoldenLabeler() {
           <aside className="w-[300px] shrink-0 space-y-[var(--space-4)]">
             <div className="ds-card p-[var(--space-4)]">
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" onClick={seedPage} disabled={!seeded.get(page)?.length}>
-                  PSP로 채우기 (F)
+                <Button size="sm" onClick={() => void seedPage()} disabled={!pdf}>
+                  채우기 (F)
                 </Button>
                 <Button variant="ghost" size="sm" onClick={clearPage}>
                   페이지 비우기
@@ -547,6 +661,22 @@ export function GoldenLabeler() {
                   onChange={(e) => updateBox(selectedBox.id, { number: e.target.value })}
                   placeholder="문항 번호"
                 />
+                <div className="mt-[var(--space-3)] flex items-center gap-2">
+                  {(['choice', 'subjective'] as const).map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => updateBox(selectedBox.id, { kind: k })}
+                      className={`rounded-[6px] px-2 py-1 text-[13px] ${
+                        selectedBox.kind === k
+                          ? 'bg-[var(--grade-tri-bg)] font-semibold text-[color:var(--grade-tri)]'
+                          : 'bg-[var(--ink-100)] text-[color:var(--text-muted)]'
+                      }`}
+                    >
+                      {k === 'choice' ? '객관식' : '주관식'}
+                    </button>
+                  ))}
+                  <span className="text-[12px] text-[color:var(--text-faint)]">뒤집기 T</span>
+                </div>
                 <div className="mt-[var(--space-3)] flex flex-wrap gap-1">
                   {selectedBox.choices.map((c) => (
                     <button
@@ -661,6 +791,24 @@ function FileButton({
     </label>
   )
 }
+
+/**
+ * 검출 결과 한 건 → 골든 초안.
+ *
+ * kind를 여기서 정해 둔다. 선지 2개 이상이면 객관식으로 본다 — 사람은 틀린 것만
+ * 뒤집으면 된다(t). kind가 비어 있으면 M2(객관식 판정)를 아예 잴 수 없다.
+ */
+function toGoldenBox(r: Region, id: string): GoldenBox {
+  return {
+    id,
+    page: r.page,
+    number: r.numLabel ?? '',
+    bbox: r.bounds,
+    kind: r.choices.length >= 2 ? 'choice' : 'subjective',
+    choices: r.choices.map((c) => ({ label: c.label, box: c.box })),
+  }
+}
+
 
 const rectAttrs = (b: Box) => ({ x: b.x, y: b.y, width: b.w, height: b.h })
 

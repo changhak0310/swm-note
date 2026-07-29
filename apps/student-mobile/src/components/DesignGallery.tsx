@@ -1,6 +1,7 @@
 // 디자인 시스템 갤러리 — dev 전용. 토큰·컴포넌트 12종을 실물로 확인한다.
 import { useState, type ReactNode } from 'react'
-import { useDocumentStore } from '../stores/documentStore'
+import { useNavigate } from 'react-router-dom'
+import { paths } from '../routes/paths'
 import {
   Button,
   IconButton,
@@ -32,7 +33,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export function DesignGallery() {
-  const closeGallery = useDocumentStore((s) => s.closeGallery)
+  const navigate = useNavigate()
+  const closeGallery = () => void navigate(paths.list)
   const [checked, setChecked] = useState(true)
   const [cause, setCause] = useState<CauseKey>('calc')
   const [seconds, setSeconds] = useState(312)

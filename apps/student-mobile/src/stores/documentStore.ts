@@ -16,8 +16,10 @@ import { buildEntries, parseAnswerLines, parseAnswerTable } from '../lib/answerK
 import { buildRetryList, consecutiveCorrect, gradeRegion } from '../lib/grading'
 import { useInkStore } from './inkStore'
 
-export type Screen = 'list' | 'editor' | 'answers' | 'gallery' | 'compare' | 'golden' | 'live'
 export type SheetMode = 'hidden' | 'summary' | 'resolve' | 'pill'
+
+/** 채점 결과 신호 — 이동이 필요한 경우를 호출자(라우터)에게 알린다 */
+export type GradeOutcome = 'graded' | 'need-answers' | 'unavailable'
 
 const MAX_PDF_BYTES = 100 * 1024 * 1024
 
@@ -38,7 +40,6 @@ export type ListMeta = {
 type ScrollTarget = { page: number; y?: number; seq: number }
 
 type DocumentState = {
-  screen: Screen
   documents: Document[]
   listMeta: Record<string, ListMeta>
   toast: string | null
@@ -63,18 +64,21 @@ type DocumentState = {
   // ---------- 목록 ----------
   loadDocuments: () => Promise<void>
   importPdf: (file: File) => Promise<void>
-  attachAnswerPdf: (file: File) => Promise<void>
-  skipAnswerPdf: () => Promise<void>
+  // 정답지 슬롯을 마치면 열어야 할 문서 id를 돌려준다 — 이동은 호출자(라우터)가 한다
+  attachAnswerPdf: (file: File) => Promise<string | null>
+  skipAnswerPdf: () => Promise<string | null>
   deleteDocument: (id: string) => Promise<void>
   restoreDocument: (id: string) => Promise<void>
   purgeDocument: (id: string) => Promise<void>
   renameDocument: (id: string, name: string) => Promise<void>
 
   // ---------- 에디터 ----------
-  openDocument: (id: string) => Promise<void>
-  closeDocument: () => void
+  /** 문서를 열어 화면 상태를 채운다. 열 수 없으면 false (라우터가 목록으로 되돌린다) */
+  openDocument: (id: string) => Promise<boolean>
+  /** 문서 화면을 떠날 때의 정리 — 열린 문서가 없으면 아무것도 하지 않는다(멱등) */
+  leaveDocument: () => void
   setVisiblePage: (page: number) => void
-  grade: () => Promise<void>
+  grade: () => Promise<GradeOutcome>
   startResolve: (regionId: string) => Promise<void>
   backToSummary: () => void
   collapseSheet: () => void
@@ -82,29 +86,18 @@ type DocumentState = {
   toggleReveal: () => void
 
   // ---------- 정답 (F-05 / F-06) ----------
-  openAnswers: () => void
-  closeAnswers: () => void
   setAnswer: (regionId: string, value: string | null) => Promise<void>
   importAnswerPdfFile: (file: File) => Promise<number>
   parseInlineKey: (pages: number[]) => Promise<number>
   convertRegionToChoice: (regionId: string) => Promise<void>
 
   showToast: (msg: string) => void
-  showLive: () => void
-  closeLive: () => void
-  showGallery: () => void
-  closeGallery: () => void
-  showCompare: () => void
-  showGolden: () => void
-  closeGolden: () => void
-  closeCompare: () => void
   toggleZoneDebug: () => void
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
-  screen: 'list',
   documents: [],
   listMeta: {},
   toast: null,
@@ -240,15 +233,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   attachAnswerPdf: async (file) => {
     const docId = get().answerPdfPromptDocId
-    if (!docId) return
+    if (!docId) return null
     set({ answerPdfPromptDocId: null })
     const doc = await db.getDocument(docId)
-    if (!doc) return
+    if (!doc) return null
 
     if (file.size > MAX_PDF_BYTES) {
       get().showToast('100MB 이하 파일만 올릴 수 있습니다')
-      await get().openDocument(docId)
-      return
+      return docId
     }
     try {
       const data = await file.arrayBuffer()
@@ -273,13 +265,13 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     } catch {
       get().showToast('정답지 PDF를 읽을 수 없습니다. 직접 입력해주세요')
     }
-    await get().openDocument(docId)
+    return docId
   },
 
   skipAnswerPdf: async () => {
     const docId = get().answerPdfPromptDocId
     set({ answerPdfPromptDocId: null })
-    if (docId) await get().openDocument(docId)
+    return docId
   },
 
   // 삭제는 휴지통으로(soft delete) — 복원 가능. 영구 삭제는 purgeDocument
@@ -328,16 +320,16 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   openDocument: async (id) => {
     const doc = await db.getDocument(id)
-    if (!doc) return
+    if (!doc) return false
     if (get().listMeta[id]?.fileMissing && !pdfCache.has(id)) {
       get().showToast('원본 PDF 파일이 없어 열 수 없습니다')
-      return
+      return false
     }
     if (!pdfCache.has(id)) {
       const data = await readPdfFile(doc.problemPdfPath)
       if (!data) {
         get().showToast('원본 PDF 파일이 없어 열 수 없습니다')
-        return
+        return false
       }
       pdfCache.set(id, await loadPdf(data))
     }
@@ -381,7 +373,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     await useInkStore.getState().setDoc(id)
 
     set({
-      screen: 'editor',
       doc,
       regionsByPage,
       pageAspects,
@@ -392,13 +383,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       resolvingRegionId: null,
       scrollTarget: { page: doc.lastPage, seq: Date.now() },   // 재진입 복원 (F-10)
     })
+    return true
   },
 
-  closeDocument: () => {
+  leaveDocument: () => {
+    if (!get().doc) return
     void db.flushPendingSaves()
     void useInkStore.getState().setDoc(null)
     set({
-      screen: 'list',
       doc: null,
       regionsByPage: {},
       pageAspects: [],
@@ -424,16 +416,15 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
 
   grade: async () => {
     const { doc, answerKey, regionsByPage } = get()
-    if (!doc || get().grading) return
+    if (!doc || get().grading) return 'unavailable'
     if (!doc.gradable) {
       get().showToast('이 PDF는 자동 채점을 지원하지 않습니다')
-      return
+      return 'unavailable'
     }
     // 선행조건: 정답이 1문항 이상 (F-07). 없으면 정답 입력으로 흘려보낸다 (F-05)
     if (!answerKey || answerKey.entries.length === 0) {
       get().showToast('정답이 없습니다. 먼저 정답을 입력해주세요')
-      set({ screen: 'answers' })
-      return
+      return 'need-answers'
     }
 
     set({ grading: true })
@@ -488,6 +479,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       } else if (nokey > 0) {
         get().showToast(`${nokey}문항은 정답이 없어 채점하지 못했습니다`)
       }
+      return 'graded'
     } finally {
       set({ grading: false })
     }
@@ -539,9 +531,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   },
 
   // ============================================================ 정답
-
-  openAnswers: () => set({ screen: 'answers' }),
-  closeAnswers: () => set({ screen: 'editor' }),
 
   setAnswer: async (regionId, value) => {
     const { doc } = get()
@@ -610,16 +599,6 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     toastTimer = setTimeout(() => set({ toast: null }), 3500)
   },
 
-  // 라이브 노트 — 문서 레코드 없이 도는 별도 화면 (liveStore가 상태를 갖는다)
-  showLive: () => set({ screen: 'live' }),
-  closeLive: () => set({ screen: 'list' }),
-
-  showGallery: () => set({ screen: 'gallery' }),
-  closeGallery: () => set({ screen: 'list' }),
-  showCompare: () => set({ screen: 'compare' }),
-  showGolden: () => set({ screen: 'golden' }),
-  closeGolden: () => set({ screen: 'list' }),
-  closeCompare: () => set({ screen: 'list' }),
   toggleZoneDebug: () => set((s) => ({ showZoneDebug: !s.showZoneDebug })),
 }))
 

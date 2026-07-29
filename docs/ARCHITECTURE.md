@@ -4,12 +4,31 @@
 
 | 항목 | 값 |
 |---|---|
-| 버전 | v0.1 |
-| 작성일 | 2026-07-24 |
-| 관련 문서 | `푸리_1차MVP_시스템명세서.md`, `SEGMENTATION.md` |
-| 문서 성격 | AI 코딩 도구에 프롬프트로 투입 가능한 수준의 구현 지침 |
+| 버전 | v0.2 |
+| 작성일 | 2026-07-24 (v0.2 개편 2026-07-29) |
+| 문서 성격 | **전 기능 공통 계약.** 기능 작업 시 항상 첨부한다 |
 
-이 문서는 **무엇을 쓰고 어떻게 구현하는가**를 정의한다. 기능 정의는 시스템 명세서에 있다.
+### 이 문서에 무엇이 들어가는가
+
+판별 기준은 하나다 — **"기능을 하나 더 만들 때 이걸 읽어야 하나?"**
+
+- 좌표계(§5), 데이터 모델(§4) → 모든 기능이 읽어야 함 → **여기**
+- 객관식 판정 규칙 → 채점 기능만 읽음 → **SDD 또는 `research/`**
+
+그래서 v0.2에서 셋으로 갈랐다.
+
+| 문서 | 성격 | 바뀌는 빈도 |
+|---|---|---|
+| `ARCHITECTURE.md` (이 문서) | 모든 기능이 공유하는 계약 | 거의 안 바뀜 |
+| `ROADMAP.md` | 2차 이월·구현 순서 = 계획 | 자주 |
+| `research/객관식_인식.md` | 객관식 인식·판정 규칙 + 실측 근거 | 자주 |
+
+### 관련 문서
+
+- `ROADMAP.md` — 구 §11 2차 이월, §12 구현 순서
+- `research/객관식_인식.md` — 객관식 인식·마킹 판정 규칙의 **유일한 출처**
+- `docs/screens/INDEX.md` — 전체 화면 플로우
+- `docs/design-system/README.md` — 디자인 시스템
 
 ---
 
@@ -328,12 +347,15 @@ onPointerUp(e) {
 
 ## 7. 핵심 알고리즘
 
+여기 남는 것은 **여러 기능이 공유하는 것뿐**이다. 채점 전용 규칙은 `research/객관식_인식.md`로 옮겼다.
+
 ### 7.1 스트로크 귀속 (`attribution.ts`)
+
+필기·채점·오답노트가 전부 쓴다. 그래서 계약이다.
 
 ```ts
 const PAD = 8
-const STRONG = 0.6
-const WEAK = 0.3
+const WEAK = 0.3        // 실효 임계
 
 function attribute(stroke: Stroke, regions: Region[]): string | null {
   const scored = regions.map(r => ({
@@ -343,7 +365,6 @@ function attribute(stroke: Stroke, regions: Region[]): string | null {
 
   const best = scored.reduce((a, b) => (b.coverage > a.coverage ? b : a))
 
-  if (best.coverage >= STRONG) return best.id
   if (best.coverage >= WEAK) return best.id
   return null                      // orphan
 }
@@ -354,34 +375,42 @@ function attribute(stroke: Stroke, regions: Region[]): string | null {
 - orphan은 화면에 표시되지만 채점 대상에서 빠진다
 - 중심점 방식을 쓰지 않는다. 분수 막대나 긴 대각선 획에서 중심이 엉뚱한 곳에 찍힌다
 
-### 7.2 객관식 판정 (`grading.ts`)
+> **`STRONG = 0.6`은 죽은 값이다 (2026-07-29 확인).**
+> 실제 코드(`attribution.ts:22-23`)에 `STRONG`과 `WEAK` 두 분기가 있으나 **둘 다 같은 값을 반환**해서
+> 실효 임계는 `WEAK = 0.3` 하나뿐이다. 강/약 구분에 의도가 있었다면(예: 약한 귀속은 orphan 취급하되
+> 화면에는 남긴다) 구현이 안 된 것이고, 없었다면 `STRONG`을 지워야 한다.
+> **정하기 전까지 이 명세는 코드가 실제로 하는 일만 적는다.**
 
-```ts
-function detectChoice(region: Region, strokes: Stroke[]): number | null {
-  const candidates: { label: number; at: number }[] = []
+### 7.2 객관식 판정 (`grading.ts`) → `research/객관식_인식.md §4.4`
 
-  for (const s of strokes) {
-    const label = isClosedLoop(s.points)
-      ? choiceInsideLoop(s.points, region.choices)     // 고리 내부에 중심이 들어오는 선지
-      : choiceByOverlap(s.points, region.choices)      // 겹치는 점 비율 최대
-    if (label) candidates.push({ label, at: lastTime(s) })
-  }
+**여기 있던 명세를 지웠다. 규칙은 `research/객관식_인식.md` §4.4 「마킹 읽기」가 유일한 출처다.**
 
-  if (!candidates.length) return null
-  return candidates.sort((a, b) => b.at - a.at)[0].label   // 마지막 스트로크 우선
-}
+지우는 게 맞았던 이유 — 같은 함수를 설명하는 명세가 둘이었고, **둘의 내용이 달랐다.** §4.4가 상위집합이고 실측 근거(§11.11)까지 달려 있는 반면, 여기 있던 스케치는 아래를 전부 빠뜨리고 있었다.
 
-function isClosedLoop(pts: Point[]): boolean {
-  const gap = dist(pts[0], pts[pts.length - 1])
-  return gap < pathLength(pts) * 0.2
-}
-```
+| 실제 코드 (`grading.ts`) | 구 §7.2 | `research §4.4` |
+|---|---|---|
+| `MIN_OVERLAP = 0.25` | 없음 (임계 없이 "최대") | **25% 이상** ✓ |
+| 형광펜(`tool: 'hi'`) 제외 | 없음 | ✓ |
+| 겹침 동점 → 마크 중심 거리 | 없음 | ✓ |
+| 판정점 = 선지 기호 **와** 박스 중심 | "중심"만 | ✓ |
+| `choicePad = min(4, 짧은 변 × 0.25)` | 없음 | ✓ |
+| 마지막 스트로크 우선 | ✓ | ✓ |
 
-동그라미·빗금·체크·밑줄이 모두 이 한 규칙으로 처리된다. AI도 모델 파일도 필요 없다.
+**두 벌을 유지하면 반드시 오래된 쪽을 읽는 사람이 나온다.** 실제로 이 문서가 "AI 코딩 도구에 투입 가능한 지침"이라고 적혀 있었으므로, 그대로 뒀으면 AI가 25%를 모른 채 구현했을 것이다.
 
-**지우개가 스트로크 단위여야 이 알고리즘이 성립한다.** 픽셀 지우개면 지운 자국이 배열에 남아 후보가 오염된다.
+`isClosedLoop`(고리 판정, `gap < 경로길이 × 0.2`)은 `lib/geometry.ts`로 옮겨져 두 경로가 공유한다.
+
+**지우개가 스트로크 단위여야 이 알고리즘이 성립한다.** 픽셀 지우개면 지운 자국이 배열에 남아 후보가 오염된다. ← 이건 계약이라 여기 남긴다.
+
+> **미문서화 규칙 (2026-07-29 발견).** `grading.ts`의 `buildRetryList` / `consecutiveCorrect` —
+> **"한 번 틀린 문항은 3연속 정답까지 다시풀기 목록에 남는다"** 는 규칙이 어느 문서에도 없다.
+> 코드 주석에 `시안2 ReviewChecks`라고만 적혀 있다. 시안에서 나온 결정이 문서를 거치지 않고
+> 코드로 직행한 사례다. **PRD/SDD를 세울 때 첫 번째로 회수해야 할 규칙.**
 
 ### 7.3 정답지 파싱 (`answerKey.ts`)
+
+> **위치 임시.** 채점 기능만 읽는 내용이라 판별 기준상 SDD 소관이다. 해당 PRD/SDD가 생기면
+> 통째로 옮기고 여기엔 포인터만 남긴다. 지금은 갈 곳이 없어서 남겨둔다.
 
 OCR을 쓰지 않는다. `pdf.js`의 `getTextContent()`로 텍스트를 뽑아 정규식으로 판정한다.
 
@@ -398,16 +427,11 @@ const PATTERNS = [
 
 **해설 문장은 파싱하지 않는다.** `따라서 답은 ③이다` 형태는 1차 범위 밖이며 직접 입력으로 넘긴다.
 
-### 7.4 선지 개별 분리 (`segment.ts` 수정)
+### 7.4 선지 개별 분리 (`segment.ts`) → `research/객관식_인식.md §4.2.4`
 
-현재 코드는 `①~⑩` 토큰을 개별로 찾은 뒤 하나의 `ansBox`로 합친다. **합치기 전 단계를 버리지 말고 `choices[]`로 보존한다.**
+**여기 있던 초안을 지웠다.** 이 문서가 쓰인 시점(2026-07-24)엔 "이렇게 고치자"는 제안이었고, 그 뒤 실제로 구현되면서 규칙이 `research/객관식_인식.md` §4.2.4 「선지 박스 (RULE-HITBOX)」로 정착했다. 배치 판정(가로/세로/혼합), 세로 범위(`rowPitch`), 이웃 행 침범 처리까지 거기가 훨씬 정확하다.
 
-```
-각 선지 상자의 우측 경계 = 다음 선지 기호의 x 직전
-마지막 선지의 우측 경계 = 기존 ansBox 우측 경계
-```
-
-이 규칙 하나로 한 줄 5개 / 2줄 3+2 / 한 줄에 하나씩이 모두 처리된다. 깨진 PDF 경로(`isChoiceLikeLine`)는 이미 균등 간격 덩어리로 판정하므로 분리가 더 쉽다.
+**구현 전 제안을 구현 후에도 남겨두면, 읽는 사람은 그게 현행 규칙인 줄 안다.**
 
 ---
 
@@ -457,32 +481,3 @@ PDF를 IndexedDB에 Blob으로 넣지 않는다. 용량이 커서 Filesystem이 
 | `segment.ts` | `choices` 분리 — 한 줄 5개, 2줄 3+2, 한 줄에 하나씩 |
 
 ---
-
-## 11. 2차 이월
-
-| 항목 | 사유 |
-|---|---|
-| 네이티브 펜 캡처 (Kotlin 플러그인) | 웹뷰 `PointerEvent`로 충분한지 스파이크 후 판단 |
-| 주관식 인식 | 로컬 정수 분류기 또는 상용 SDK |
-| 회차 겹쳐보기 | 1차는 전환만 |
-| 필기 도구 확장 | 색상·형광펜·도형 |
-| 오답노트 PDF 내보내기 | `pdf-lib` + `@capacitor/share` |
-| iOS | Capacitor 구조상 추가 비용은 크지 않다 |
-| 서버·동기화 | 배포 시 AI를 붙인다면 프록시 서버가 먼저 필요하다 |
-
----
-
-## 12. 구현 순서 제안
-
-1일차에 스파이크를 먼저 돌린다. 여기서 `pressure`가 실패하면 이후 순서가 바뀐다.
-
-| 순서 | 작업 | 근거 |
-|---|---|---|
-| 1 | 실기기 필기 스파이크 | 유일하게 설계를 뒤집을 수 있는 미지수 |
-| 2 | `segment.ts`에 `choices[]` 추가 + 테스트 | 채점의 전제. 순수 함수라 기기 없이 가능 |
-| 3 | PDF 렌더 + 필기 캔버스 + 귀속 | 가장 큰 덩어리 |
-| 4 | 저장·재진입 | 여기까지가 "도구"로서 성립하는 최소 |
-| 5 | 정답 파싱 + 정답 입력 화면 | |
-| 6 | 채점 + 결과 표시 | |
-| 7 | 다시 풀기 + 회차 레이어 | |
-| 8 | 문서 목록 | 마지막이어도 된다. 개발 중에는 단일 문서로 진행 가능 |

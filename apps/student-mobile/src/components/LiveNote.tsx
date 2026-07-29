@@ -7,9 +7,10 @@
 // 화면 구성은 에디터와 같은 부품이다 (PageScroller · PdfCanvas · InkCanvas · PenToolbar).
 // 필기 동작이 에디터와 한 글자도 다르지 않아야 하기 때문이다.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MAX_W } from '../lib/geometry'
 import { detectMarks } from '../lib/liveDetect'
-import { useDocumentStore } from '../stores/documentStore'
+import { paths } from '../routes/paths'
 import { useInkStore } from '../stores/inkStore'
 import { getLivePdf, IDLE_ANALYSIS, useLiveStore, type PageAnalysis } from '../stores/liveStore'
 import { Button, Checkbox } from '../design'
@@ -23,7 +24,8 @@ import logo from '../assets/logo.svg'
 const CIRCLED = ['①', '②', '③', '④', '⑤']
 
 export function LiveNote() {
-  const close = useDocumentStore((s) => s.closeLive)
+  const navigate = useNavigate()
+  const close = () => void navigate(paths.list)
   const fileName = useLiveStore((s) => s.fileName)
   const docKey = useLiveStore((s) => s.docKey)
   const mode = useLiveStore((s) => s.mode)
@@ -34,6 +36,7 @@ export function LiveNote() {
   const message = useLiveStore((s) => s.message)
   const showZones = useLiveStore((s) => s.showZones)
   const showHitboxes = useLiveStore((s) => s.showHitboxes)
+  const pack = useLiveStore((s) => s.pack)
   const store = useLiveStore.getState()
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -103,6 +106,34 @@ export function LiveNote() {
               {visiblePage}쪽 다시 분석
             </Button>
           </div>
+        )}
+        {pdf && (
+          <label className="cursor-pointer" title="사람이 확인한 골든셋 JSON — 라벨된 쪽은 검출 대신 그것을 쓴다">
+            <input
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.currentTarget.files?.[0]
+                e.currentTarget.value = ''
+                if (f) void store.importPack(f)
+              }}
+            />
+            <span
+              className="inline-flex h-8 items-center rounded-[8px] px-3 text-[13px] font-medium"
+              style={
+                pack
+                  ? { background: 'var(--grade-o-bg)', color: 'var(--grade-o)' }
+                  : { border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }
+              }
+            >
+              {pack
+                ? `라벨 팩 ${pack.pages}쪽${pack.via === 'fingerprint' ? ' · 지문' : ''}${
+                    pack.offset ? ` ${pack.offset > 0 ? '+' : ''}${pack.offset}` : ''
+                  }`
+                : '라벨 팩'}
+            </span>
+          </label>
         )}
         <Button
           variant="secondary"
@@ -203,6 +234,7 @@ function MarkOverlay({
   const strokes = useInkStore((s) => s.strokesByPage[page])
   const showZones = useLiveStore((s) => s.showZones)
   const showHitboxes = useLiveStore((s) => s.showHitboxes)
+  const pack = useLiveStore((s) => s.pack)
   const reportMarks = useLiveStore((s) => s.reportMarks)
   const crops = useLiveStore((s) => s.numCrops)
 
@@ -438,7 +470,13 @@ function StatusChip({ page, analysis }: { page: number; analysis: PageAnalysis }
           문항 <span className="num">{analysis.regions.length}</span> · 체크{' '}
           <span className="num">{checked}</span>
           <span className="opacity-60">
-            {analysis.source === 'scan' ? '스캔 · ' : analysis.source === 'v1' ? 'v1 · ' : ''}
+            {analysis.source === 'pack'
+              ? '라벨 · '
+              : analysis.source === 'scan'
+                ? '스캔 · '
+                : analysis.source === 'v1'
+                  ? 'v1 · '
+                  : ''}
             {Math.round(analysis.ms)}ms
           </span>
         </>

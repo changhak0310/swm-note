@@ -238,8 +238,12 @@ function ringsIn(comps: Comp[], ink: Uint8Array, w: number): Comp[] {
  *   달라, y0부터 견주면 한 행 안의 ①②가 ②①로 뒤집힌다 — OCR 대조 실측에서
  *   2+2+1 배치가 ②①④③⑤로 나왔다. 행을 먼저 묶고(겹침 판정 — regions.ts의
  *   choiceBoxes와 같은 규칙) 행 안에서만 x로 정렬해야 한다.
+ *
+ * ★ 텍스트 경로도 이 함수를 그대로 쓴다(`psp/markerGroups.ts`). 입력이 좌표 넷짜리
+ *   `Comp`뿐이라 출처가 픽셀 링이든 인쇄된 ①②③ span이든 규칙이 같다 — 두 경로가
+ *   뭉치를 다르게 묶으면 그 차이가 곧 버그다.
  */
-function groupMarkers(
+export function groupMarkers(
   markers: Comp[],
   scale: number,
   columns: Column[],

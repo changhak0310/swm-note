@@ -17,6 +17,7 @@ import { pageInput, toAppRegions } from '../psp/adapter'
 import { detectScan } from '../scan/detect'
 import { scanRegions } from '../scan/regions'
 import { APP_SCAN_WIDTH } from './scanRaster'
+import { openPdf } from './pdfDoc'
 import type { Raster } from '../scan/components'
 import type { PageInput } from '../psp/types'
 import type { Point, Region, Stroke } from '../../types'
@@ -42,7 +43,7 @@ suite('스캔 경로만으로 텍스트 PDF', () => {
   it('텍스트 경로와 나란히 잰다', async () => {
     const { createCanvas } = await import('@napi-rs/canvas')
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    const pdf = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(PDF_PATH!)) }).promise
+    const pdf = await openPdf(pdfjs, new Uint8Array(readFileSync(PDF_PATH!)))
 
     // ---------- 기준선: 텍스트 경로 ----------
     const inputs: PageInput[] = []

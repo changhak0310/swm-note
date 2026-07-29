@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  GOLDEN_FORMAT,
   emptyGolden,
   parseGolden,
   scoreAgainstGolden,
@@ -138,6 +139,45 @@ describe('골든셋 채점', () => {
     expect(s.falsePositives).toEqual([{ page: 1, number: 'a' }])
   })
 
+  it('M0 — 비문항 쪽에 구역을 만들거나 문항 쪽을 비우면 깎인다', () => {
+    // 1쪽은 문항 쪽, 3쪽은 비문항 쪽(표지·개념·해설)
+    const g = set([gold(1, '1', box(0, 0, 100, 100))], [1, 3])
+    expect(scoreAgainstGolden([pred(1, '1', box(0, 0, 100, 100))], g).pageTypeAccuracy).toBe(1)
+
+    // 해설 쪽에서 없는 문항을 만들었다 — 오검출 비용이 가장 큰 실패다
+    const spill = scoreAgainstGolden(
+      [pred(1, '1', box(0, 0, 100, 100)), pred(3, '9', box(0, 0, 100, 100))],
+      g,
+    )
+    expect(spill.pageTypeAccuracy).toBe(0.5)
+
+    // 문항 쪽을 통째로 비웠다
+    expect(scoreAgainstGolden([], g).pageTypeAccuracy).toBe(0.5)
+  })
+
+  it('M2 — 객관식/주관식 판정. kind를 적은 문항만 분모에 든다', () => {
+    const choices = [box(0, 80, 20, 15), box(20, 80, 20, 15)]
+    const mc: GoldenBox = { ...gold(1, '1', box(0, 0, 100, 100), choices), kind: 'choice' }
+    const sa: GoldenBox = { ...gold(1, '2', box(0, 200, 100, 100)), kind: 'subjective' }
+
+    const right = scoreAgainstGolden(
+      [pred(1, '1', box(0, 0, 100, 100), choices), pred(1, '2', box(0, 200, 100, 100))],
+      set([mc, sa], [1]),
+    )
+    expect(right.choiceTypeAccuracy).toBe(1)
+
+    // 주관식을 객관식으로 봤다 (본문 원문자를 선지로 오인하는 실패)
+    const wrong = scoreAgainstGolden(
+      [pred(1, '1', box(0, 0, 100, 100), choices), pred(1, '2', box(0, 200, 100, 100), choices)],
+      set([mc, sa], [1]),
+    )
+    expect(wrong.choiceTypeAccuracy).toBe(0.5)
+
+    // kind가 없으면 잴 수 없다 — 0이 아니라 null이어야 한다
+    const noKind = set([gold(1, '1', box(0, 0, 100, 100))], [1])
+    expect(scoreAgainstGolden([pred(1, '1', box(0, 0, 100, 100))], noKind).choiceTypeAccuracy).toBeNull()
+  })
+
   it('페이지별 내역을 낸다', () => {
     const g = set(
       [gold(1, '1', box(0, 0, 100, 100)), gold(2, '2', box(0, 0, 100, 100))],
@@ -164,6 +204,19 @@ describe('골든셋 직렬화', () => {
     expect(() => parseGolden(JSON.stringify({ ...emptyGolden('t', 1), format: 99 }))).toThrow(
       /형식 버전/,
     )
+  })
+
+  it('v1 라벨을 그대로 읽는다 — 이미 만든 라벨을 버리지 않는다', () => {
+    const v1 = { ...set([gold(1, '1', box(0, 0, 10, 10))], [1]), format: 1 }
+    const back = parseGolden(JSON.stringify(v1))
+    expect(back.format).toBe(GOLDEN_FORMAT)   // 형식이 올라가도 이 검사는 그대로 산다
+    expect(back.boxes).toHaveLength(1)
+    expect(back.boxes[0].kind).toBeUndefined()      // 유형 미지정 → M2 분모에서 빠진다
+  })
+
+  it('원본 해시를 보존한다 — 라벨과 PDF가 짝인지 확인하는 유일한 수단이다', () => {
+    const g = { ...set([], [1]), sourceHash: 'sha256:abc' }
+    expect(parseGolden(JSON.stringify(g)).sourceHash).toBe('sha256:abc')
   })
 
   it('망가진 상자는 버리고 나머지를 살린다', () => {

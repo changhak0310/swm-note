@@ -3,6 +3,9 @@ dist/
 .turbo/
 *.local
 
+# pdf.js CMap·표준 폰트 — vite.config.ts가 node_modules에서 복사한다 (2.4MB)
+apps/student-mobile/public/pdfjs/
+
 # Capacitor
 apps/student-mobile/android/app/build/
 apps/student-mobile/android/.gradle/

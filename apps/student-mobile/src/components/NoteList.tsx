@@ -1,7 +1,9 @@
 // F-01 문서 목록 — 시안2 삼성노트 셸: 사이드바 + 노트 그리드 + FAB
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Document } from '../types'
 import { useDocumentStore, type ListMeta } from '../stores/documentStore'
+import { paths } from '../routes/paths'
 import { fmtRelative } from '../lib/format'
 import { Button } from '../design'
 import logo from '../assets/logo.svg'
@@ -12,6 +14,12 @@ export function NoteList() {
   const importing = useDocumentStore((s) => s.importing)
   const answerPdfPromptDocId = useDocumentStore((s) => s.answerPdfPromptDocId)
   const store = useDocumentStore.getState()
+  const navigate = useNavigate()
+
+  // 정답지 슬롯을 마치면 그 문서를 연다 (F-02) — 로딩은 /doc/:docId 로더가 맡는다
+  const openAfterPrompt = (docId: string | null) => {
+    if (docId) void navigate(paths.doc(docId))
+  }
 
   const fileRef = useRef<HTMLInputElement>(null)
   const answerFileRef = useRef<HTMLInputElement>(null)
@@ -73,7 +81,7 @@ export function NoteList() {
         </div>
         <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
         <SideItem
-          onClick={store.showLive}
+          onClick={() => void navigate(paths.live)}
           icon={<LiveIcon />}
           label="라이브 노트"
           trailing={
@@ -95,14 +103,23 @@ export function NoteList() {
         </p>
         {import.meta.env.DEV && (
           <div className="mt-auto">
-            <Button variant="ghost" size="sm" onClick={store.showGallery}>
+            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.gallery)}>
               디자인 시스템
             </Button>
-            <Button variant="ghost" size="sm" onClick={store.showCompare}>
+            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.compare)}>
               분할 비교
             </Button>
-            <Button variant="ghost" size="sm" onClick={store.showGolden}>
+            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.golden)}>
               골든셋 라벨링
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.probe)}>
+              1단계 · 벡터 비율 측정
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.extract)}>
+              3단계 · 추출과 검산
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.quality)}>
+              라벨 품질
             </Button>
           </div>
         )}
@@ -175,7 +192,7 @@ export function NoteList() {
                 key={d.id}
                 doc={d}
                 meta={listMeta[d.id]}
-                onOpen={() => void store.openDocument(d.id)}
+                onOpen={() => void navigate(paths.doc(d.id))}
                 onMenu={() => setMenuDoc(d)}
               />
             ))}
@@ -207,7 +224,7 @@ export function NoteList() {
             정답지를 올리면 정답을 자동으로 불러와. 나중에 정답 입력 화면에서 올릴 수도 있어.
           </p>
           <div className="mt-[var(--space-5)] flex justify-end gap-[var(--space-2)]">
-            <Button variant="ghost" onClick={() => void store.skipAnswerPdf()}>
+            <Button variant="ghost" onClick={() => void store.skipAnswerPdf().then(openAfterPrompt)}>
               건너뛰기
             </Button>
             <Button onClick={() => answerFileRef.current?.click()}>정답지 올리기</Button>
@@ -220,7 +237,7 @@ export function NoteList() {
             onChange={(e) => {
               const f = e.target.files?.[0]
               e.target.value = ''
-              if (f) void store.attachAnswerPdf(f)
+              if (f) void store.attachAnswerPdf(f).then(openAfterPrompt)
             }}
           />
         </Modal>

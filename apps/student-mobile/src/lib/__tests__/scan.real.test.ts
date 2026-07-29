@@ -12,6 +12,7 @@ import { detectScan } from '../scan/detect'
 import { scanRegions } from '../scan/regions'
 import { detectMarks } from '../liveDetect'
 import { APP_SCAN_WIDTH, pageRaster } from './scanRaster'
+import { openPdf } from './pdfDoc'
 import type { Point, Stroke } from '../../types'
 
 function circleOn(box: { x: number; y: number; w: number; h: number }, t: number): Stroke {
@@ -59,7 +60,7 @@ const suite = PDF && existsSync(PDF) ? describe : describe.skip
 suite('스캔 검출', () => {
   it('샘플 페이지', async () => {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    const pdf = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(PDF!)) }).promise
+    const pdf = await openPdf(pdfjs, new Uint8Array(readFileSync(PDF!)))
     const TARGET = Number(process.env.TARGET_W || APP_SCAN_WIDTH)
     const raster = (pageNo: number) => pageRaster(pdfjs, pdf, pageNo, TARGET)
 

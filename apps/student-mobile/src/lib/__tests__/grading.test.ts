@@ -19,10 +19,55 @@ const R = region({
   choices: CHOICES,
 })
 
+// 3+2 세로 적층에 띠가 작은 조판 — 실측 수학의 신 p3을 그대로 옮겼다.
+// 마커 h=2.94, 행 간격 4.7이라 띠 높이가 5.4밖에 안 된다.
+//   ①②③  y 456.6~462.0
+//   ④⑤    y 462.0~467.4
+const TIGHT = region({
+  id: 'T',
+  bounds: { x: 400, y: 455, w: 70, h: 15 },
+  choices: ([1, 2, 3, 4, 5] as ChoiceLabel[]).map((label) => ({
+    label,
+    box: {
+      x: 402 + ((label - 1) % 3) * 21.9,
+      y: label <= 3 ? 456.6 : 462.0,
+      w: 21.9,
+      h: 5.4,
+    },
+  })),
+})
+
 describe('detectChoice', () => {
   it('닫힌 고리 — 동그라미 안에 중심이 들어오는 선지', () => {
     const circle = stroke(circlePoints(75, 110, 15))   // ② 중심 (75, 110)
     expect(detectChoice(R, [circle])).toBe(2)
+  })
+
+  // ★ 옛 코드(CHOICE_PAD=4 고정 + 순회 순서 동점 처리)에서 실패한다.
+  //   띠 높이 5.4에 사방 4를 더하면 상자가 13.4가 되어 윗줄이 아랫줄을 통째로 삼키고,
+  //   겹침 비율이 둘 다 1.0이 되면 먼저 순회한 낮은 번호가 이겼다 — ④가 ①로 읽혔다.
+  it('띠가 작은 3+2 배치 — 아랫줄 체크가 윗줄로 새지 않는다', () => {
+    // ④ 기호 자리에 친 체크 (열린 마크 → 겹침 경로)
+    const check4 = stroke([
+      ...linePoints(404.5, 464.0, 405.9, 465.4),
+      ...linePoints(405.9, 465.4, 408.6, 462.7),
+    ])
+    expect(detectChoice(TIGHT, [check4])).toBe(4)
+
+    // ⑤도 같은 방식으로 ②에 새면 안 된다
+    const check5 = stroke([
+      ...linePoints(426.4, 464.0, 427.8, 465.4),
+      ...linePoints(427.8, 465.4, 430.5, 462.7),
+    ])
+    expect(detectChoice(TIGHT, [check5])).toBe(5)
+  })
+
+  it('띠가 작아도 윗줄 표기는 그대로 윗줄로 읽힌다', () => {
+    const check1 = stroke([
+      ...linePoints(404.5, 458.6, 405.9, 460.0),
+      ...linePoints(405.9, 460.0, 408.6, 457.3),
+    ])
+    expect(detectChoice(TIGHT, [check1])).toBe(1)
   })
 
   it('열린 마크 — 빗금은 겹치는 점 비율 최대 선지', () => {

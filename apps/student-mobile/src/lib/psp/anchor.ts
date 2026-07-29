@@ -22,16 +22,43 @@ const PATTERNS: RegExp[] = [
   /^(?:문제|유형)\s*(\d{1,3})/,
 ]
 
+/**
+ * "유형-문항" 꼴 번호 — `8-1` `8‒2`. 붙임표는 서체마다 다른 문자가 온다.
+ *
+ * 실측 "수학의 신 문제.pdf": A-2·A-3·A-4를 통과하는 라인 선두 span 중 **157개**가 이 꼴인데
+ * 패턴이 없어 통째로 버려졌다(그 책 문항 203개는 전부 `01` 꼴 쪽에서만 나온 것이다).
+ * 같은 검사에서 hi_math·수능은 **0개** — 이 패턴을 더해도 두 책은 아무 영향을 받지 않는다.
+ */
+const HYPHEN_NUMBER = /^\s*(\d{1,3})\s*[-–—‒]\s*(\d{1,3})\s*$/
+
 const LEFT_ALIGN_TOL = 0.08     // A-2 컬럼폭의 8%
 const EMPHASIS_RATIO = 1.05     // A-3 본문 중앙값 × 1.05
 const CLUSTER_TOL = 0.015       // §5.2 컬럼폭의 1.5%
 
 function matchNumber(text: string): string | null {
+  // 붙임표 꼴을 먼저 본다. 아래 PATTERNS의 첫 줄은 `8-1`을 통째로 거절하므로 순서가
+  // 결과를 바꾸지는 않지만, 읽는 사람에게 이 꼴이 별개 규칙임을 드러낸다.
+  const h = HYPHEN_NUMBER.exec(text)
+  if (h) return `${h[1]}-${h[2]}`      // 표기는 ASCII 붙임표로 정규화 — id가 서체에 안 흔들린다
   for (const re of PATTERNS) {
     const m = re.exec(text)
     if (m) return m[1]
   }
   return null
+}
+
+/**
+ * 번호 표기 → 정렬·수열 검산용 정수.
+ *
+ * `8-1`은 **8001**로 읽는다. 같은 유형 안에서는 1씩 증가해 `fillNumberGaps`의 빈칸 메우기가
+ * 그대로 성립하고, 유형이 바뀌면 크게 뛰어 `GAP_MAX`(5)를 넘으므로 유형 경계를 가로질러
+ * 엉뚱한 번호를 되살리지 않는다.
+ */
+function numberValue(text: string): number | null {
+  const h = HYPHEN_NUMBER.exec(text)
+  if (h) return Number(h[1]) * 1000 + Number(h[2])
+  const n = Number(text)
+  return Number.isFinite(n) ? n : null
 }
 
 /**
@@ -64,12 +91,11 @@ export function findCandidates(layout: PageLayout, bodyFontSize: number): Anchor
         matchNumber((head.text + (line.spans[1]?.text ?? '')).trim())
       if (numberText === null) continue
 
-      const numberInt = Number(numberText)
       out.push({
         pageIndex: layout.pageIndex,
         columnIndex: col.index,
         numberText,
-        numberInt: Number.isFinite(numberInt) ? numberInt : null,
+        numberInt: numberValue(numberText),
         bbox: head.bbox,
         line,
         offset: head.bbox[0] - col.bbox[0],

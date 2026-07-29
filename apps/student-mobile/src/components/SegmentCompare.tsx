@@ -1,7 +1,8 @@
 // 분할 알고리즘 A/B 비교 — dev 전용.
 // 같은 PDF를 기존 segmentPage와 PSP 파이프라인에 각각 넣고 결과를 나란히 그린다.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useDocumentStore } from '../stores/documentStore'
+import { useNavigate } from 'react-router-dom'
+import { paths } from '../routes/paths'
 import { Button, Checkbox } from '../design'
 import { MAX_W } from '../lib/geometry'
 import { getPageLines, loadPdf, renderPage, type PDFDocumentProxy } from '../lib/pdf'
@@ -10,6 +11,7 @@ import { runPipeline, type PipelineResult, type Problem } from '../lib/psp'
 import { contentExtents, documentInput, toAppRegions } from '../lib/psp/adapter'
 import { diff, measure, type Divergence, type PageExtent, type SegmentMetrics } from '../lib/psp/compare'
 import { parseGolden, scoreAgainstGolden, type GoldenScore, type GoldenSet } from '../lib/psp/golden'
+import { DEFAULT_PASS, draftKey, loadDraft } from '../lib/goldenStore'
 import type { Box, Region as AppRegion } from '../types'
 
 type Side = { regions: AppRegion[]; metrics: SegmentMetrics }
@@ -28,7 +30,8 @@ type Run = {
 const now = () => performance.now()
 
 export function SegmentCompare() {
-  const close = useDocumentStore((s) => s.closeCompare)
+  const navigate = useNavigate()
+  const close = () => void navigate(paths.list)
   const [run, setRun] = useState<Run | null>(null)
   const [page, setPage] = useState(1)
   const [busy, setBusy] = useState(false)
@@ -106,8 +109,8 @@ export function SegmentCompare() {
         setPage(1)
 
         // 라벨링 화면이 같은 파일명으로 저장해 둔 골든셋이 있으면 바로 채점한다
-        const saved = localStorage.getItem(`puri.golden.${fileName}`)
-        setGolden(saved ? parseGolden(saved) : null)
+        // 차수가 생겼다 — 기본 차수(A)를 문다 (lib/goldenStore.ts)
+        setGolden(loadDraft(draftKey(fileName, DEFAULT_PASS)))
       } catch (e) {
         setMessage(e instanceof Error ? e.message : String(e))
       } finally {

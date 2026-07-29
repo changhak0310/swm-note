@@ -27,7 +27,7 @@ const FAMILIES: { name: string; chars: string }[] = [
 ]
 const ASCII_PAREN = /^\((\d)\)/
 
-type Marker = { ordinal: number; family: string; bbox: BBox; line: Line }
+export type Marker = { ordinal: number; family: string; bbox: BBox; line: Line }
 
 function markerAt(text: string): { ordinal: number; family: string } | null {
   const t = text.trim()
@@ -45,7 +45,7 @@ function markerAt(text: string): { ordinal: number; family: string } | null {
  * 문제 내부 라인에서 선지 마커를 수집한다.
  * "(1)"이 "(", "1", ")" 세 조각으로 쪼개져 오는 경우가 있어 인접 span 결합도 시도한다.
  */
-function findMarkers(lines: Line[]): Marker[] {
+export function findMarkers(lines: Line[]): Marker[] {
   const out: Marker[] = []
   for (const line of lines) {
     for (let i = 0; i < line.spans.length; i++) {
@@ -66,8 +66,23 @@ function findMarkers(lines: Line[]): Marker[] {
 const CHOICE_BAND = 0.4        // C-3 문제 bbox 하단 60% → 상단 40% 배제
 /** 본문에서 이만큼(라인 높이 배수) 떨어져 홀로 놓인 꼬리 줄은 이 문제의 것이 아니다 */
 const STRAY_GAP = 3
-/** 밴드를 건너뛰고 "맨 아래 뭉치"를 쓸 때 요구하는 최소 선지 수 */
-const RETRY_MIN = 4
+
+/**
+ * C-1 — 선지로 인정할 최소 개수. 스캔 경로의 `MIN_CHOICES`와 같은 값, 같은 이유다.
+ *
+ * 예전에는 2였는데, 그러면 **소문항 번호와 설명 단계 표시가 선지가 된다** — `⑴⑵`로 갈라
+ * 묻는 서술형 문항과 "㈎∼㈑에 알맞은 것을 써넣어라" 꼴이 전부 객관식으로 잡혔다.
+ * 실측 "수학의 신 문제.pdf": 어긋난 선지 박스가 전부 `① ②` 두 개짜리였고,
+ * 선지 개수 분포는 **2개 12문항 · 3개 1 · 4개 1 · 5개 78**이었다. 앞의 13이 오검출이다.
+ *
+ * 진짜 2~3지선다를 잃을 위험은 실측상 없다 — hi_math 106문항, 수능 33문항이 **전부**
+ * 5지선다이고, 규칙 문서 §4.3.3의 스캔 실측도 같은 말을 한다("3지선다는 없다").
+ * 그래도 이것은 **전제**이지 사실이 아니다 (B-3). 3지선다를 쓰는 책이 코퍼스에 들어오면
+ * 개수 하한이 아니라 정렬·간격 균일 증거로 갈라야 한다.
+ */
+const CHOICE_MIN = 4
+/** 밴드를 건너뛰고 "맨 아래 뭉치"를 쓸 때 요구하는 최소 선지 수 — C-1과 같은 값이다 */
+const RETRY_MIN = CHOICE_MIN
 
 /**
  * 문제 끝에 딸려 온 장식 줄을 텍스트 범위에서 뺀다.
@@ -100,11 +115,11 @@ function withoutTrailingStrays(lines: Line[], markers: Marker[], lh: number): Li
 }
 
 /**
- * 마커 무리에서 선지가 될 수 있는 것만 남긴다 — C-1(둘 이상)·C-2(1부터 연속).
+ * 마커 무리에서 선지가 될 수 있는 것만 남긴다 — C-1(`CHOICE_MIN` 이상)·C-2(1부터 연속).
  * 계열이 섞이면 가장 많이 쓰인 계열만 본다. 같은 번호가 두 번 나오면 위쪽 것을 쓴다.
  */
 function runFrom(markers: Marker[]): Marker[] {
-  if (markers.length < 2) return []
+  if (markers.length < CHOICE_MIN) return []
   const family = dominantFamily(markers)
   let picked = markers.filter((m) => m.family === family)
 
@@ -115,7 +130,7 @@ function runFrom(markers: Marker[]): Marker[] {
   picked.sort((a, b) => a.ordinal - b.ordinal)
   let n = 0
   while (n < picked.length && picked[n].ordinal === n + 1) n++
-  return n >= 2 ? picked.slice(0, n) : []
+  return n >= CHOICE_MIN ? picked.slice(0, n) : []
 }
 
 /**
@@ -142,7 +157,7 @@ function bottomRun(markers: Marker[]): Marker[] {
   return run.length && run[0].ordinal === 1 ? run : []
 }
 
-function dominantFamily(markers: Marker[]): string | null {
+export function dominantFamily(markers: Marker[]): string | null {
   const count = new Map<string, number>()
   for (const m of markers) count.set(m.family, (count.get(m.family) ?? 0) + 1)
   let best: string | null = null
@@ -175,7 +190,13 @@ export type RegionResult = {
  * 처리 순서는 CHOICE_ITEM → FIGURE → STEM → WORK_AREA이고,
  * 위에서 확정된 영역은 아래 규칙에서 제외한다 (§5.3).
  */
-export function buildRegions(slice: Slice, problemId: string): RegionResult {
+export function buildRegions(
+  slice: Slice,
+  problemId: string,
+  /** 이 문서가 선지에 쓰는 계열 (`markerGroups.ts`의 `dominantChoiceFamily`).
+   *  null이면 문항 안 다수결로 정한다 — 예전 동작 그대로. */
+  choiceFamily: string | null = null,
+): RegionResult {
   const { bbox, column, lineHeight: lh } = slice
   const flags: Flag[] = []
   const colW = bboxW(column.bbox)
@@ -185,7 +206,7 @@ export function buildRegions(slice: Slice, problemId: string): RegionResult {
   const ocrText = lines.map((l) => l.text).join('\n')
 
   // ---------- (1) CHOICE_ITEM — 최우선 ----------
-  const choice = detectChoiceItems(lines, bbox, lh, colW, colRight)
+  const choice = detectChoiceItems(lines, bbox, lh, colW, colRight, choiceFamily)
   if (choice.mixedLayout) flags.push('FLAG_CHOICE_LAYOUT_MIXED')
 
   // INV-4 — 모든 Region bbox ⊆ 소속 Problem bbox.
@@ -265,8 +286,13 @@ function detectChoiceItems(
   lh: number,
   colW: number,
   colRight: number,
+  choiceFamily: string | null,
 ): { items: ChoiceItem[]; mixedLayout: boolean; markersSeen: number } {
-  const all = findMarkers(lines)
+  // 문서가 쓰는 계열이 정해졌으면 그것만 본다. 다른 계열은 이 책에서 선지가 아니므로
+  // markersSeen에도 넣지 않는다 — 넣으면 소문항이 있는 문항마다 V-6이 헛되이 붙는다
+  const all = choiceFamily
+    ? findMarkers(lines).filter((m) => m.family === choiceFamily)
+    : findMarkers(lines)
   const markersSeen = all.length
   if (all.length === 0) return { items: [], mixedLayout: false, markersSeen }
 

@@ -11,6 +11,7 @@ import { runPipeline } from '../psp'
 import { contentExtents, pageInput, toAppRegions } from '../psp/adapter'
 import { diff, measure, type PageExtent } from '../psp/compare'
 import { parseGolden, scoreAgainstGolden, type GoldenScore } from '../psp/golden'
+import { openPdf } from './pdfDoc'
 import type { Region as AppRegion } from '../../types'
 
 const expand = (p?: string) => p?.replace(/^~/, process.env.HOME ?? '~')
@@ -25,7 +26,7 @@ suite('실제 PDF 벤치마크', () => {
   it('두 알고리즘을 같은 잣대로 비교한다', async () => {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
     const data = new Uint8Array(readFileSync(PDF_PATH!))
-    const pdf = await pdfjs.getDocument({ data }).promise
+    const pdf = await openPdf(pdfjs, data)
 
     // ---------- 기존 ----------
     let t = performance.now()

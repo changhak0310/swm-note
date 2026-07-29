@@ -25,6 +25,7 @@ import {
 import { reconcileNumbering } from '../scan/numbering'
 import { scanRegions } from '../scan/regions'
 import { APP_SCAN_WIDTH, pageRaster } from './scanRaster'
+import { openPdf } from './pdfDoc'
 
 /** DUMP=디렉터리 — tesseract에 실제로 넘어간 전처리 크롭을 BMP로 떨군다 (오독 튜닝용) */
 const DUMP = process.env.DUMP
@@ -66,7 +67,7 @@ suite('스캔 검출 OCR 되읽기', () => {
     configureOcr({ cachePath: cache })
 
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    const pdf = await pdfjs.getDocument({ data: new Uint8Array(readFileSync(PDF!)) }).promise
+    const pdf = await openPdf(pdfjs, new Uint8Array(readFileSync(PDF!)))
     const TARGET = Number(process.env.TARGET_W || APP_SCAN_WIDTH)
     const raster = (pageNo: number) => pageRaster(pdfjs, pdf, pageNo, TARGET)
 
