@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
-import { Button, Input } from '../design'
+import { Button, Input } from '@puri/ui'
 import {
   auditAgainstAnswers,
   missingRuns,

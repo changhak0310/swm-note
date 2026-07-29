@@ -5,8 +5,8 @@ import type { Document } from '../types'
 import { useDocumentStore, type ListMeta } from '../stores/documentStore'
 import { paths } from '../routes/paths'
 import { fmtRelative } from '../lib/format'
-import { Button } from '../design'
-import logo from '../assets/logo.svg'
+import { Button } from '@puri/ui'
+import logo from '@puri/ui/assets/logo.svg'
 
 export function NoteList() {
   const documents = useDocumentStore((s) => s.documents)
@@ -103,9 +103,6 @@ export function NoteList() {
         </p>
         {import.meta.env.DEV && (
           <div className="mt-auto">
-            <Button variant="ghost" size="sm" onClick={() => void navigate(paths.gallery)}>
-              디자인 시스템
-            </Button>
             <Button variant="ghost" size="sm" onClick={() => void navigate(paths.compare)}>
               분할 비교
             </Button>

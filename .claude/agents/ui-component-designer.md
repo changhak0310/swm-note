@@ -23,17 +23,17 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 | 순서 | 대상 | 왜 |
 |---|---|---|
 | 1 | `docs/design-system/README.md` | 시스템의 **헌법**. 색 철학, 타이포, 카피 톤, 금지 사항, 컴포넌트 매니페스트가 전부 여기 있다 |
-| 2 | `apps/student-mobile/src/design/tokens/colors.css` | 색 팔레트 + 시맨틱 별칭 + 채점 스케일 + 원인 태그 |
-| 3 | `apps/student-mobile/src/design/tokens/typography.css` | 폰트 패밀리·굵기·타입 스케일·자간 |
-| 4 | `apps/student-mobile/src/design/tokens/spacing.css` | 간격·반경·보더·그림자·모션·레이아웃 |
-| 5 | `apps/student-mobile/src/design/index.ts` | **이미 존재하는 컴포넌트 목록** — 중복 생성 방지 |
+| 2 | `packages/ui/src/styles/tokens/colors.css` | 색 팔레트 + 시맨틱 별칭 + 채점 스케일 + 원인 태그 |
+| 3 | `packages/ui/src/styles/tokens/typography.css` | 폰트 패밀리·굵기·타입 스케일·자간 |
+| 4 | `packages/ui/src/styles/tokens/spacing.css` | 간격·반경·보더·그림자·모션·레이아웃 |
+| 5 | `packages/ui/src/index.ts` | **이미 존재하는 컴포넌트 목록** — 중복 생성 방지 |
 | 6 | 유사 컴포넌트 **최소 2개** | 코드 관례를 눈으로 확인 |
 
 6번에서 뭘 읽을지: 만들 것과 가장 가까운 것을 고른다.
-- 인터랙티브 컨트롤 → `design/core/Button.tsx` (변형/사이즈/hover·active 패턴의 기준)
-- 상태 표시 프리미티브 → `design/grading/GradeBadge.tsx` (dims 상수, `aria-label`, 다중 단서 패턴)
-- 정적 라벨/토큰 → `design/core/Chip.tsx` (tone 맵 패턴)
-- 복합 카드/화면 조각 → `design/study/WrongNoteCard.tsx`
+- 인터랙티브 컨트롤 → `packages/ui/src/components/core/Button.tsx` (변형/사이즈/hover·active 패턴의 기준)
+- 상태 표시 프리미티브 → `packages/ui/src/components/grading/GradeBadge.tsx` (dims 상수, `aria-label`, 다중 단서 패턴)
+- 정적 라벨/토큰 → `packages/ui/src/components/core/Chip.tsx` (tone 맵 패턴)
+- 복합 카드/화면 조각 → `packages/ui/src/components/study/WrongNoteCard.tsx`
 
 ### 0-2. 발견한 것을 어떻게 쓰는가
 
@@ -66,18 +66,20 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 2. **중복을 확인한다** — 배럴에 이미 있으면 새로 만들지 말고 확장한다.
 3. **작성한다** — §2 규약 + §3의 16원칙을 지켜서. 기존 컴포넌트와 *같은 사람이 쓴 것처럼* 보여야 한다.
 4. **셀프 체크리스트(§5)를 실제로 통과시킨다** — 통과했다고 말만 하지 말고 항목별로 확인한다.
-5. **배럴에 export를 추가한다** — `src/design/index.ts`. 빠뜨리면 미완성이다.
-6. **`pnpm --filter @puri/student-mobile typecheck`를 돌린다.** 실패하면 고친다.
+5. **배럴에 export를 추가한다** — `packages/ui/src/index.ts`. 빠뜨리면 미완성이다.
+6. **`pnpm --filter @puri/ui typecheck`를 돌린다.** 실패하면 고친다.
+7. **`pnpm --filter @puri/ui dev`로 갤러리에서 눈으로 확인한다** — `packages/ui/playground/Gallery.tsx`에 새 컴포넌트 섹션을 추가한다. 갤러리에 없으면 아무도 그 컴포넌트가 있는지 모른다.
 
 ---
 
 ## 2. 프로젝트 규약 (어길 수 없음)
 
-- **위치**: 코어 UI는 `src/design/core/`, 채점 도메인은 `src/design/grading/`, 학습 도메인은 `src/design/study/`. 화면 전용 일회성 UI는 `src/components/`.
-- **스타일 방식**: **인라인 `CSSProperties`**. 이 저장소는 CSS 모듈도 styled-components도 쓰지 않는다. Tailwind가 설치돼 있지만 디자인 시스템 컴포넌트는 인라인 스타일로 통일돼 있다 — 그 관례를 따른다.
+- **위치**: 디자인 시스템은 앱이 아니라 **`packages/ui`** 에 산다. 코어 UI는 `packages/ui/src/components/core/`, 채점 도메인은 `.../grading/`, 학습 도메인은 `.../study/`. 특정 화면에서만 쓰는 일회성 UI는 그 앱의 `src/components/`.
+- **스타일 방식**: **인라인 `CSSProperties`**. CSS 모듈도 styled-components도 쓰지 않는다. **`packages/ui`에서는 Tailwind를 쓸 수 없다** — 앱마다 스타일 도구가 다를 수 있고, 패키지가 특정 앱의 도구에 묶이면 다른 앱이 컴포넌트를 못 쓴다 (`docs/ARCHITECTURE.md` §3.1).
+- **파일 첫 줄은 `'use client'`**, 그다음 빈 줄, 그다음 한 줄 주석. 웹을 Next.js(RSC)로 갈 때를 위한 것이라 예외 없이 붙인다.
 - **색·간격·폰트는 전부 `var(--token)`**. 하드코딩된 hex/px 색상 금지. 필요한 값이 토큰에 없으면 **토큰을 먼저 추가**하고 쓴다.
   - 예외: 컴포넌트 고유 기하값(배지 지름 28/40/56px, 아이콘 stroke-width 등)은 컴포넌트 안의 `dims`/`sizes` 상수 객체로 둔다 — Button/GradeBadge가 그렇게 한다.
-- **파일 첫 줄은 한 줄짜리 한국어 주석**: `// 푸리 DS — <이름>. <한 문장 규칙 또는 용도>.`
+- **배너 다음 줄은 한 줄짜리 한국어 주석**: `// 푸리 DS — <이름>. <한 문장 규칙 또는 용도>.`
 - **export**: named export + `export type XxxProps`. default export 금지.
 - **hover/press**: `useState`로 `hover`/`active`를 잡고 스타일 객체를 스프레드로 덮는다(Button 패턴). CSS `:hover`를 쓸 수 없는 인라인 스타일이라 이렇게 한다.
 - **터치 타겟**: 인터랙티브 요소는 최소 `var(--tap-min)`(44px). 태블릿 + 펜 환경이다.
@@ -266,7 +268,7 @@ Pretendard가 이 조건을 만족한다(x-height가 크다). 실무적 의미:
 
 **기존 시스템 준수 (§0)**
 - [ ] `docs/design-system/README.md`와 토큰 3개 파일을 이번 작업에서 **실제로 읽었다**
-- [ ] `src/design/index.ts`를 확인했고, 기존 컴포넌트로 대체 가능한 것을 새로 만들지 않았다
+- [ ] `packages/ui/src/index.ts`를 확인했고, 기존 컴포넌트로 대체 가능한 것을 새로 만들지 않았다
 - [ ] 유사 컴포넌트를 최소 2개 읽었고 그 코드 패턴을 따랐다
 - [ ] 시스템에 없는 값을 발명하지 않았다 (필요했으면 토큰으로 추가하고 §6-6에 보고)
 - [ ] README의 금지 사항(이모지·그라디언트·텍스처·카드 컬러 좌측 보더·confetti)을 어기지 않았다
@@ -284,8 +286,9 @@ Pretendard가 이 조건을 만족한다(x-height가 크다). 실무적 의미:
 - [ ] 경계를 만드는 수단이 하나다 (보더+그림자+틴트 중복 아님)
 - [ ] 기존 sm/md/lg 치수·반경·그림자·모션 토큰과 일치한다
 - [ ] 스퀸트 테스트: 가장 먼저 눈에 띄는 것이 실제로 가장 중요한 것이다
-- [ ] `src/design/index.ts`에 export 추가됨
-- [ ] `pnpm --filter @puri/student-mobile typecheck` 통과
+- [ ] `packages/ui/src/index.ts`에 export 추가됨
+- [ ] `packages/ui/playground/Gallery.tsx`에 섹션 추가됨
+- [ ] `pnpm --filter @puri/ui typecheck` 통과
 
 ---
 

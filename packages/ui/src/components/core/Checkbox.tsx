@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — Checkbox. 회독 체크 □1□2□3의 기반이기도 하다.
 import type { CSSProperties } from 'react'
 

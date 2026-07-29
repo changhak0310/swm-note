@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — Button. primary는 화면당 하나만.
 import { useState, type CSSProperties, type ReactNode } from 'react'
 

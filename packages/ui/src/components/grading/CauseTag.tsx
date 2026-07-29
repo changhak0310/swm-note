@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — CauseTag. 오답 원인 5태그, 1축. 각 태그가 고유 색을 갖고 칩으로만 쓰인다.
 // 자가진단(선택형)과 AI 대조(정적) 양쪽에 쓴다.
 import type { CSSProperties } from 'react'

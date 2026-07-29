@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — Input. 라벨·힌트·에러·선행 아이콘. 초록 포커스 글로우.
 import { useId, useState, type ReactNode } from 'react'
 

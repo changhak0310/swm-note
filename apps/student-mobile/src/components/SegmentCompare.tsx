@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { paths } from '../routes/paths'
-import { Button, Checkbox } from '../design'
+import { Button, Checkbox } from '@puri/ui'
 import { MAX_W } from '../lib/geometry'
 import { getPageLines, loadPdf, renderPage, type PDFDocumentProxy } from '../lib/pdf'
 import { segmentPage } from '../lib/segment'

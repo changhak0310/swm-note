@@ -106,9 +106,19 @@
 
 ## 3. 저장소 구조
 
-기존 모노레포(Turborepo + pnpm)의 `apps/student-mobile`을 그대로 사용한다.
+기존 모노레포(Turborepo + pnpm)를 쓴다. 디자인 시스템은 `packages/ui`(`@puri/ui`), 앱은 `apps/student-mobile`이다.
 
 ```
+packages/ui/                     @puri/ui — 디자인 시스템
+├── src/styles/
+│   ├── index.css                전역 진입점 (@import 목록만. 소비자는 이 파일 하나만 쓴다)
+│   ├── base.css                 .ds-card · .ds-wordmark
+│   └── tokens/                  colors · typography · spacing
+├── src/components/{core,grading,study}/
+├── src/assets/                  logo.svg · logo-white.svg
+├── src/index.ts                 배럴
+└── playground/                  컴포넌트 갤러리 (앱 없이 실행)
+
 apps/student-mobile/
 ├── android/                     Capacitor 네이티브 프로젝트
 ├── src/
@@ -134,7 +144,26 @@ apps/student-mobile/
 └── capacitor.config.ts
 ```
 
-`src/lib` 아래는 **DOM과 React에 의존하지 않는 순수 함수**로 유지한다. 분할·귀속·채점은 전부 좌표 연산이므로 노드 환경에서 테스트할 수 있어야 한다. 이 경계가 유일한 아키텍처 규칙이다.
+`src/lib` 아래는 **DOM과 React에 의존하지 않는 순수 함수**로 유지한다. 분할·귀속·채점은 전부 좌표 연산이므로 노드 환경에서 테스트할 수 있어야 한다.
+
+### 3.1 UI 경계 — 컴포넌트는 공유하고, 화면은 공유하지 않는다
+
+앱은 안드로이드·iOS·웹 셋을 대상으로 하지만 **Capacitor가 같은 `dist/`를 감쌀 뿐이라 여기까지는 앱 하나**다. 그와 별개로 **화면이 다른 웹 앱**이 예정되어 있고, 그래서 디자인 시스템이 앱 밖에 있다.
+
+| | `packages/ui` | `apps/*` |
+|---|---|---|
+| 소유 | 토큰·브랜드 에셋·재사용 컴포넌트 | 화면 조합, 라우팅, 상태, 앱 전용 조각 |
+| 의존 방향 | 앱을 **모른다** | `@puri/ui`를 import 한다 |
+| 스타일 | 인라인 `CSSProperties` + `var(--token)`. **Tailwind 금지** | 앱이 원하는 도구를 쓴다 (현재 Tailwind v4) |
+
+- **Tailwind가 패키지에 들어가면 안 되는 이유**: 디자인 시스템이 특정 앱의 스타일 도구에 묶이면, 그 도구를 안 쓰는 앱은 컴포넌트를 못 쓴다. 현재 12개 컴포넌트는 `className`을 하나도 쓰지 않는다.
+- **토큰은 `var()`로만 참조한다.** 값이 없으면 컴포넌트에 하드코딩하지 말고 `packages/ui/src/styles/tokens/*.css`에 먼저 추가한다.
+- **전 컴포넌트에 `'use client'` 배너**를 둔다. 지금은 무의미하지만 웹을 Next.js(RSC)로 갈 때 전수 수정을 막는다.
+- 앱 전역 스타일(스크롤·선택 방지 같은 **그 앱의** 결정)은 `packages/ui`가 아니라 앱의 `index.css`에 둔다.
+
+이 두 경계(§3의 `src/lib` 순수성, §3.1의 UI 방향성)가 아키텍처 규칙의 전부다.
+
+> **이 절의 트리는 신규 파일 기준이라 일부 이름이 현행과 다르다** — `DocumentList.tsx`는 `NoteList.tsx`, `AnswerKeySheet.tsx`는 `AnswerKeyScreen.tsx`이고 `routes/`가 빠져 있다. 화면 목록의 현행 출처는 `docs/screens/INDEX.md`다.
 
 ---
 

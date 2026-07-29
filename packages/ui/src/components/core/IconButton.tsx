@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — IconButton. 아이콘 전용 정사각 버튼. label은 필수(접근성).
 import { useState, type CSSProperties } from 'react'
 

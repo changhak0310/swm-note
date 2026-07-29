@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — GradeBadge. O/△/X는 아이콘이 아니라 브랜드 프리미티브(링 + 마크)다.
 // O = 완전히 맞음, △ = 맞았지만 아쉬움, X = 해설·원인 필요.
 import type { CSSProperties } from 'react'

@@ -6,10 +6,10 @@ import { useInkStore } from '../stores/inkStore'
 import { paths } from '../routes/paths'
 import { useGrade } from '../routes/useGrade'
 import { consecutiveCorrect } from '../lib/grading'
-import { Button, ReviewChecks, Timer } from '../design'
+import { Button, ReviewChecks, Timer } from '@puri/ui'
 import { PenToolbar } from './PenToolbar'
 import { PageStack } from './PageStack'
-import logo from '../assets/logo.svg'
+import logo from '@puri/ui/assets/logo.svg'
 
 export function Editor() {
   const doc = useDocumentStore((s) => s.doc)

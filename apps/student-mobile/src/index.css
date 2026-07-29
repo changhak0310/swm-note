@@ -1,31 +1,16 @@
 @import "tailwindcss";
 
-/* 푸리 디자인 시스템 토큰 — docs/design-system/README.md 참조 */
-@import "./design/tokens/colors.css";
-@import "./design/tokens/typography.css";
-@import "./design/tokens/spacing.css";
+/* 푸리 디자인 시스템 — 토큰·폰트·프리미티브. docs/design-system/README.md 참조 */
+@import "@puri/ui/styles.css";
 
+/* 아래는 이 앱만의 전역 규칙이다 — 펜으로 쓰는 화면이라 스크롤 튐과 텍스트 선택을 막는다.
+   화면이 다른 앱은 같은 선택을 하지 않으므로 디자인 시스템에 넣지 않는다. */
 html,
 body {
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
   background: var(--surface-page);
-}
-
-/* 카드 표면 — 흰 종이, 14px 코너, 은은한 그림자. 컬러 좌측 보더 액센트 금지 */
-.ds-card {
-  background: var(--surface-card);
-  border: var(--border-w) solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
-
-/* 브랜드 워드마크 — Pretendard Bold, tracking -0.03em */
-.ds-wordmark {
-  font-weight: var(--w-bold);
-  letter-spacing: -0.03em;
-  color: var(--text-strong);
 }
 
 /* ---------- 시안2 모션 ---------- */

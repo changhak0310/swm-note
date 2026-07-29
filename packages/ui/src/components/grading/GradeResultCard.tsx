@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — GradeResultCard. 문제 1개의 채점 결과 요약("3번 · △ · #계산 · 시간") 카드 행.
 // 상태는 GradeBadge가 나른다 — 카드 프레임은 중립(컬러 좌측 보더·틴트 금지). onClick이 있으면 카드 전체가 버튼이 된다.
 import { useState, type CSSProperties } from 'react'

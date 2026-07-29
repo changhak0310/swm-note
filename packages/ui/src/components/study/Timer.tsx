@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — Timer. 누적 시간 측정: mono 판독부 + 일시정지 + ±30초 스텝.
 // 시간은 상대 신호다 — 정밀 조정을 강요하지 않는다. slow는 △ 시간 신호.
 import type { CSSProperties, ReactNode } from 'react'

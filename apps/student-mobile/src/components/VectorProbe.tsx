@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDocumentStore } from '../stores/documentStore'
 import { paths } from '../routes/paths'
-import { Button } from '../design'
+import { Button } from '@puri/ui'
 import { MAX_W } from '../lib/geometry'
 import { IMAGE_OPS, getPageLines, loadPdf, renderPage, type PDFDocumentProxy } from '../lib/pdf'
 import {

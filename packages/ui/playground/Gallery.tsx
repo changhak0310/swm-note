@@ -1,7 +1,9 @@
-// 디자인 시스템 갤러리 — dev 전용. 토큰·컴포넌트 12종을 실물로 확인한다.
-import { useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { paths } from '../routes/paths'
+// 디자인 시스템 갤러리 — 토큰·컴포넌트 12종을 실물로 확인한다.
+// 앱 없이 단독으로 뜬다: pnpm --filter @puri/ui dev
+//
+// 여기는 Tailwind가 없다. 컴포넌트가 전부 인라인 스타일이라 필요가 없었고,
+// 디자인 시스템이 특정 앱의 스타일 도구에 묶이면 그 도구를 안 쓰는 앱이 못 쓴다.
+import { useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Button,
   IconButton,
@@ -17,24 +19,36 @@ import {
   WrongNoteCard,
   ConceptHub,
   type CauseKey,
-} from '../design'
-import logo from '../assets/logo.svg'
-import logoWhite from '../assets/logo-white.svg'
+} from '../src'
+import logo from '../src/assets/logo.svg'
+import logoWhite from '../src/assets/logo-white.svg'
+
+const row: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 'var(--space-4)',
+}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="ds-card p-[var(--space-6)]">
-      <h2 className="mb-[var(--space-4)] text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
+    <section className="ds-card" style={{ padding: 'var(--space-6)' }}>
+      <h2
+        style={{
+          marginBottom: 'var(--space-4)',
+          fontSize: 'var(--text-h3)',
+          fontWeight: 600,
+          color: 'var(--text-strong)',
+        }}
+      >
         {title}
       </h2>
-      <div className="flex flex-wrap items-center gap-[var(--space-4)]">{children}</div>
+      <div style={row}>{children}</div>
     </section>
   )
 }
 
-export function DesignGallery() {
-  const navigate = useNavigate()
-  const closeGallery = () => void navigate(paths.list)
+export function Gallery() {
   const [checked, setChecked] = useState(true)
   const [cause, setCause] = useState<CauseKey>('calc')
   const [seconds, setSeconds] = useState(312)
@@ -42,25 +56,47 @@ export function DesignGallery() {
   const [rounds, setRounds] = useState(2)
 
   return (
-    <div className="min-h-dvh p-[var(--space-6)]">
-      <header className="mb-[var(--space-6)] flex items-center gap-[var(--space-3)]">
-        <img src={logo} alt="" className="h-8 w-8" />
-        <h1 className="ds-wordmark text-[length:var(--text-h2)]">푸리 디자인 시스템</h1>
-        <Button variant="ghost" size="sm" style={{ marginLeft: 'auto' }} onClick={closeGallery}>
-          ← 목록으로
-        </Button>
+    <div style={{ minHeight: '100dvh', padding: 'var(--space-6)', background: 'var(--surface-page)' }}>
+      <header
+        style={{
+          marginBottom: 'var(--space-6)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-3)',
+        }}
+      >
+        <img src={logo} alt="" style={{ width: 32, height: 32 }} />
+        <h1 className="ds-wordmark" style={{ fontSize: 'var(--text-h2)' }}>
+          푸리 디자인 시스템
+        </h1>
       </header>
 
-      <div className="mx-auto flex max-w-4xl flex-col gap-[var(--space-5)]">
+      <div
+        style={{
+          margin: '0 auto',
+          display: 'flex',
+          maxWidth: 896,
+          flexDirection: 'column',
+          gap: 'var(--space-5)',
+        }}
+      >
         <Section title="브랜드 — 관찰 고리">
-          <img src={logo} alt="푸리 로고" className="h-16 w-16" />
+          <img src={logo} alt="푸리 로고" style={{ width: 64, height: 64 }} />
           <div
-            className="grid h-16 w-16 place-items-center rounded-[var(--radius-md)]"
-            style={{ background: 'var(--brand)' }}
+            style={{
+              display: 'grid',
+              placeItems: 'center',
+              width: 64,
+              height: 64,
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--brand)',
+            }}
           >
-            <img src={logoWhite} alt="푸리 로고 (화이트)" className="h-12 w-12" />
+            <img src={logoWhite} alt="푸리 로고 (화이트)" style={{ width: 48, height: 48 }} />
           </div>
-          <span className="ds-wordmark text-[length:var(--text-display)]">푸리</span>
+          <span className="ds-wordmark" style={{ fontSize: 'var(--text-display)' }}>
+            푸리
+          </span>
         </Section>
 
         <Section title="Button">
@@ -115,7 +151,7 @@ export function DesignGallery() {
           {(Object.keys(CAUSES) as CauseKey[]).map((k) => (
             <CauseTag key={k} cause={k} interactive selected={cause === k} onClick={() => setCause(k)} />
           ))}
-          <span className="text-[length:var(--text-sm)] text-[color:var(--text-muted)]">
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
             정적: <CauseTag cause="concept" size="sm" />
           </span>
         </Section>

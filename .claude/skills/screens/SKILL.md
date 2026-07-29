@@ -150,5 +150,5 @@ sh docs/check-errors.sh
 4. 다음 단계
 
 > 다음은 ④ 프로토타입입니다. Claude Design에 이 3개를 **파일째로** 첨부하세요.
-> `docs/screens/S-1xx-*.md` · `docs/references/S-1xx/` · `apps/student-mobile/src/design/tokens/` 3개 전부
+> `docs/screens/S-1xx-*.md` · `docs/references/S-1xx/` · `packages/ui/src/styles/tokens/` 3개 전부
 > 시안이 확정되면 화면 문서의 `## 확정 시안`을 채우고, 구현은 `screen-composer` 에이전트에 넘기시면 됩니다.

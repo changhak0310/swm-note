@@ -12,9 +12,18 @@ Android 태블릿에서 문제집 PDF에 펜 필기하고, 객관식을 기하 �
 
 ## 구조
 
-Turborepo + pnpm 모노레포. 앱은 `apps/student-mobile` 하나다.
+Turborepo + pnpm 모노레포. 디자인 시스템은 `packages/ui`, 앱은 `apps/student-mobile`이다.
+**컴포넌트는 공유하고 화면은 공유하지 않는다** — 웹 앱이 생기면 같은 `@puri/ui`를 쓰되 화면은 자기 것을 짠다.
 
 ```
+packages/ui/          @puri/ui — 빌드 없는 소스 패키지 (docs/design-system/README.md의 구현)
+├── src/styles/       index.css(진입점) · base.css · tokens/{colors,typography,spacing}.css
+├── src/components/   core/ Button·IconButton·Input·Checkbox·Chip
+│                     grading/ GradeBadge(O/△/X)·CauseTag(원인 5태그)·GradeResultCard
+│                     study/ Timer·ReviewChecks·WrongNoteCard·ConceptHub
+├── src/assets/       logo.svg · logo-white.svg
+└── playground/       컴포넌트 갤러리 — 앱 없이 뜬다
+
 apps/student-mobile/
 ├── src/lib/          DOM·React 비의존 순수 함수 — 유일한 아키텍처 경계
 │   ├── geometry.ts     좌표계(MAX_W=760)·박스·고리 판정
@@ -38,11 +47,6 @@ apps/student-mobile/
 │   ├── answerKey.ts    정답지 텍스트 파싱 (OCR 없음)
 │   ├── pdf.ts          pdf.js 로드·렌더·텍스트 추출
 │   └── db.ts           IndexedDB 6개 스토어 + 1초 디바운스 저장
-├── src/design/       푸리 디자인 시스템 (docs/design-system/README.md의 구현)
-│   ├── tokens/         colors·typography·spacing CSS 토큰
-│   ├── core/           Button · IconButton · Input · Checkbox · Chip
-│   ├── grading/        GradeBadge (O/△/X) · CauseTag (원인 5태그)
-│   └── study/          Timer · ReviewChecks · WrongNoteCard · ConceptHub
 ├── src/stores/       Zustand (documentStore, inkStore, liveStore)
 ├── src/components/   PdfCanvas / InkCanvas / GradeOverlay 3겹 레이어 외
 │                     PageScroller — 세로 스크롤·윈도잉·핀치 셸 (에디터·라이브 노트 공용)
@@ -53,8 +57,12 @@ apps/student-mobile/
 
 가이드는 [`docs/design-system/README.md`](docs/design-system/README.md) — 톤은 "담담한 도구",
 색은 장식이 아니라 진단(O 그린 / △ 앰버 / X 레드, 원인 태그 5색), 이모지·그라데이션·색 보더 액센트 금지.
-폰트는 오프라인 앱 특성상 CDN 대신 npm 번들(Pretendard Variable, JetBrains Mono)로 교체했다.
-`pnpm dev` 후 문서 목록의 **디자인 시스템** 버튼(dev 전용)에서 전 컴포넌트 갤러리를 볼 수 있다.
+폰트는 오프라인 앱 특성상 CDN 대신 npm 번들(Pretendard Variable, JetBrains Mono)로 교체했고,
+`@puri/ui/styles.css`가 토큰과 함께 실어 온다 — 앱은 이 한 줄만 import 하면 된다.
+
+```sh
+pnpm --filter @puri/ui dev   # 컴포넌트 갤러리 (앱 없이 뜬다)
+```
 
 ## 개발
 

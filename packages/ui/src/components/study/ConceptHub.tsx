@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — ConceptHub. 약점개념 허브: 단원별 그룹, 틀린 횟수 내림차순,
 // 허브 전체 최다 약점 하나를 최다로 강조. 점수가 아니라 "몰린 곳"을 보여준다.
 import type { CSSProperties } from 'react'

@@ -1,0 +1,12 @@
+/* 푸리 디자인 시스템 — 전역 진입점. 소비하는 앱은 이 파일 하나만 import 한다.
+   @import 목록이 전부다. 규칙은 여기 두지 말고 tokens/ 또는 base.css에 넣는다. */
+
+/* 브랜드 폰트 — 오프라인 앱이라 CDN 대신 번들에 싣는다 (design-system README §VISUAL FOUNDATIONS).
+   앱이 아니라 여기서 부르는 이유: 폰트를 부르는 걸 잊은 앱은 토큰만 맞고 글꼴이 틀린다. */
+@import "pretendard/dist/web/variable/pretendardvariable.css";
+@import "@fontsource-variable/jetbrains-mono/index.css";
+
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
+@import "./base.css";

@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — ReviewChecks. 회독 체크 □1□2□3.
 // 3회 연속 정답이면 아카이브로 졸업, 한 번 틀리면 리셋.
 import type { CSSProperties } from 'react'

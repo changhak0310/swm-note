@@ -13,13 +13,13 @@ import { detectMarks } from '../lib/liveDetect'
 import { paths } from '../routes/paths'
 import { useInkStore } from '../stores/inkStore'
 import { getLivePdf, IDLE_ANALYSIS, useLiveStore, type PageAnalysis } from '../stores/liveStore'
-import { Button, Checkbox } from '../design'
+import { Button, Checkbox } from '@puri/ui'
 import { PenToolbar } from './PenToolbar'
 import { PageScroller } from './PageScroller'
 import { PdfCanvas } from './PdfCanvas'
 import { InkCanvas } from './InkCanvas'
 import { TextLayer } from './TextLayer'
-import logo from '../assets/logo.svg'
+import logo from '@puri/ui/assets/logo.svg'
 
 const CIRCLED = ['①', '②', '③', '④', '⑤']
 

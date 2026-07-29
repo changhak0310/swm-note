@@ -6,7 +6,6 @@ export const paths = {
   live: '/live',
 
   // dev 전용 (프로덕션 번들에서는 라우트 자체가 빠진다 — routes/dev.ts)
-  gallery: '/dev/gallery',
   compare: '/dev/compare',
   golden: '/dev/golden',
   quality: '/dev/quality',

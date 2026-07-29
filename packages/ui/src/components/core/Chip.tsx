@@ -1,3 +1,5 @@
+'use client'
+
 // 푸리 DS — Chip. 상태·필터 토큰. 오답 원인 태그는 CauseTag를 쓴다.
 import type { CSSProperties, ReactNode } from 'react'
 

@@ -16,7 +16,8 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 |---|---|---|
 | 단위 | **화면 전체** (`routes/` 에 걸리는 것) | 컴포넌트 하나 |
 | 하는 일 | 기존 컴포넌트를 **조합**해 화면 구성 | 새 컴포넌트 **제작** |
-| 산출물 | `components/{Screen}.tsx` + 라우트 배선 | `design/{core,grading,study}/*.tsx` |
+| 산출물 | 그 앱의 `src/components/{Screen}.tsx` + 라우트 배선 | `packages/ui/src/components/{core,grading,study}/*.tsx` |
+| 사는 곳 | **앱** — 화면은 앱마다 다르므로 공유하지 않는다 | **`packages/ui`** — 모든 앱이 같은 것을 쓴다 |
 | 상태 | 정상·로딩·빈·에러 **4종 전부** | 컴포넌트 자체의 변형 |
 
 **화면을 짜다 필요한 컴포넌트가 없으면 직접 만들지 않는다.** 무엇이 없는지 보고하고 `ui-component-designer`에 넘기라고 안내한다. 화면 파일 안에 일회용 컴포넌트를 인라인으로 만드는 것이 이 에이전트의 가장 흔한 실패다.
@@ -33,9 +34,9 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 |---|---|---|
 | 1 | `docs/screens/S-1xx-*.md` (대상 화면) | **명세서.** 보여줄 것·상태·진입/이탈이 전부 여기 있다 |
 | 2 | `docs/screens/INDEX.md` | 이 화면이 어디서 오고 어디로 가는지 |
-| 3 | `apps/student-mobile/src/design/index.ts` | **이미 있는 컴포넌트 12개.** 중복 제작 방지 |
+| 3 | `packages/ui/src/index.ts` | **이미 있는 컴포넌트 12개.** 중복 제작 방지 |
 | 4 | `docs/design-system/README.md` | 색 철학·카피 톤·금지 사항 |
-| 5 | `design/tokens/{colors,spacing,typography}.css` | 하드코딩 금지. 전부 `var()` |
+| 5 | `packages/ui/src/styles/tokens/{colors,spacing,typography}.css` | 하드코딩 금지. 전부 `var()` |
 | 6 | 유사 화면 **최소 1개** | `components/NoteList.tsx`, `Editor.tsx`, `AnswerKeyScreen.tsx` 중 가까운 것 |
 | 7 | `apps/student-mobile/src/routes/index.tsx` · `paths.ts` | 라우트 배선 관례 |
 

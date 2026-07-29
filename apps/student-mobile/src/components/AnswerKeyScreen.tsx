@@ -6,7 +6,7 @@ import type { AnswerEntry, Region } from '../types'
 import { useDocumentStore } from '../stores/documentStore'
 import { paths } from '../routes/paths'
 import { useGrade } from '../routes/useGrade'
-import { Button, Chip } from '../design'
+import { Button, Chip } from '@puri/ui'
 
 const CHOICE_VALUES = ['1', '2', '3', '4', '5'] as const
 const CIRCLED = ['①', '②', '③', '④', '⑤']
