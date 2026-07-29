@@ -384,7 +384,7 @@ onPointerUp(e) {
 
 ```ts
 const PAD = 8
-const WEAK = 0.3        // 실효 임계
+const MIN_COVERAGE = 0.3
 
 function attribute(stroke: Stroke, regions: Region[]): string | null {
   const scored = regions.map(r => ({
@@ -394,7 +394,7 @@ function attribute(stroke: Stroke, regions: Region[]): string | null {
 
   const best = scored.reduce((a, b) => (b.coverage > a.coverage ? b : a))
 
-  if (best.coverage >= WEAK) return best.id
+  if (best.coverage >= MIN_COVERAGE) return best.id
   return null                      // orphan
 }
 ```
@@ -404,11 +404,11 @@ function attribute(stroke: Stroke, regions: Region[]): string | null {
 - orphan은 화면에 표시되지만 채점 대상에서 빠진다
 - 중심점 방식을 쓰지 않는다. 분수 막대나 긴 대각선 획에서 중심이 엉뚱한 곳에 찍힌다
 
-> **`STRONG = 0.6`은 죽은 값이다 (2026-07-29 확인).**
-> 실제 코드(`attribution.ts:22-23`)에 `STRONG`과 `WEAK` 두 분기가 있으나 **둘 다 같은 값을 반환**해서
-> 실효 임계는 `WEAK = 0.3` 하나뿐이다. 강/약 구분에 의도가 있었다면(예: 약한 귀속은 orphan 취급하되
-> 화면에는 남긴다) 구현이 안 된 것이고, 없었다면 `STRONG`을 지워야 한다.
-> **정하기 전까지 이 명세는 코드가 실제로 하는 일만 적는다.**
+> **`STRONG = 0.6`은 제거됐다 (2026-07-29).**
+> 원래 `STRONG`·`WEAK` 두 분기가 있었으나 **둘 다 같은 값을 반환**해서 `STRONG`은 아무 일도
+> 하지 않았다. 두 분기를 합쳐 `MIN_COVERAGE = 0.3` 하나로 정리했고 **동작은 바뀌지 않았다.**
+> 강/약을 나눌 의도가 있었다면 구현되지 않은 것이다 — 되살리려면 "약한 귀속을 어떻게 다르게
+> 다룰지"부터 정해야 한다.
 
 ### 7.2 객관식 판정 (`grading.ts`) → `research/객관식_인식.md §4.4`
 

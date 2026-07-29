@@ -30,7 +30,7 @@ export function ratioInside(pts: Point[], box: Box): number {
   return inside / pts.length
 }
 
-/** 시작점과 끝점의 거리가 전체 경로 길이의 20% 미만이면 닫힌 고리로 본다 (§7.2) */
+/** 시작점과 끝점의 거리가 전체 경로 길이의 20% 미만이면 닫힌 고리로 본다 (research/객관식_인식.md §4.4) */
 export function isClosedLoop(pts: Point[]): boolean {
   if (pts.length < 3) return false
   const len = pathLength(pts)

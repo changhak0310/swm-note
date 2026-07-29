@@ -1,4 +1,5 @@
-// 구역 분할 (§7.4)
+// 구역 분할 — 선지 박스 규칙은 docs/research/객관식_인식.md §4.2.4 「선지 박스 (RULE-HITBOX)」다.
+// (구 ARCHITECTURE §7.4는 구현 전 제안이었고 지금은 포인터만 남아 있다)
 // 수능형 1~2단 문제지: 줄 시작의 "N." 번호 토큰을 앵커로 잡고
 // 다음 번호까지를 문항 bounds로, 구역 내 ①~⑤ 토큰을 choices[]로 보존한다.
 import type { Box, ChoiceLabel, Region } from '../types'

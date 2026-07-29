@@ -1,4 +1,5 @@
-// 객관식 기하 판정 (§7.2)
+// 객관식 기하 판정 — 규칙의 출처는 docs/research/객관식_인식.md §4.4 「마킹 읽기」다.
+// (구 ARCHITECTURE §7.2는 오래된 스케치였고 지금은 그 문서를 가리키는 포인터만 남아 있다)
 // 동그라미·빗금·체크·밑줄이 모두 "닫힌 고리 / 열린 마크" 한 규칙으로 처리된다.
 // 전제: 지우개는 스트로크 단위 — 픽셀 지우개면 지운 자국이 후보를 오염시킨다.
 import type { Attempt, AnswerEntry, Box, Region, Stroke, Point, RetryList } from '../types'
