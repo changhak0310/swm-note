@@ -55,7 +55,7 @@ suite('실제 PDF 선지 판정', () => {
     const pdf = await openPdf(pdfjs, data)
 
     const inputs: PageInput[] = []
-    // 앱(liveStore.runDocPass)과 같은 입력 — 도형 포함. 도형을 빼면 단 판정이 무너져
+    // 앱(documentStore.runDocPass)과 같은 입력 — 도형 포함. 도형을 빼면 단 판정이 무너져
     // 선지 박스가 안 붙는 문항이 생긴다(실측 수능: 객관식 33→26)
     for (let p = 1; p <= pdf.numPages; p++) inputs.push(await pageInput(pdf, p, true))
     const result = runPipeline(inputs, { jobId: 'b' })

@@ -6,8 +6,7 @@ import { useDocumentStore } from '../stores/documentStore'
 import { useInkStore } from '../stores/inkStore'
 import { COLOR_HEX, useToolStore, type InkColor, type Tool } from '../stores/toolStore'
 
-/** showGrade=false — 채점이 없는 화면(라이브 노트)에서 ✦ 버튼만 뺀다 */
-export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
+export function PenToolbar() {
   const tool = useToolStore((s) => s.tool)
   const color = useToolStore((s) => s.color)
   const fingerDraw = useToolStore((s) => s.fingerDraw)
@@ -19,7 +18,6 @@ export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
   const canUndo = useInkStore((s) => s.undoStack.length > 0)
   const canRedo = useInkStore((s) => s.redoStack.length > 0)
   const grade = useDocumentStore((s) => s.grade)
-  const gradable = useDocumentStore((s) => s.doc?.gradable ?? false)
   const graded = useDocumentStore((s) => Object.keys(s.attemptsAll).length > 0)
 
   return (
@@ -50,27 +48,22 @@ export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
       <Divider />
 
       {/* ✦ AI 채점 — 시안2의 주 진입점 (F-07) */}
-      {showGrade && (
-        <>
-          <IconButton
-            variant="solid"
-            label={gradable ? 'AI 채점' : '이 PDF는 자동 채점을 지원하지 않습니다'}
-            disabled={!gradable}
-            onClick={() => void grade()}
-            className="relative size-12 shadow-sm disabled:opacity-40"
-          >
-            {/* 아직 한 번도 채점 안 했으면 조용히 맥박친다 — 주 진입점이라 눈에 띄어야 한다 */}
-            {!graded && gradable && (
-              <span
-                className="absolute inset-0 rounded-md"
-                style={{ animation: 'puriPulse 2.2s var(--ease-out) infinite' }}
-              />
-            )}
-            <SparkIcon />
-          </IconButton>
-          <Divider />
-        </>
-      )}
+      <IconButton
+        variant="solid"
+        label="AI 채점"
+        onClick={() => void grade()}
+        className="relative size-12 shadow-sm"
+      >
+        {/* 아직 한 번도 채점 안 했으면 조용히 맥박친다 — 주 진입점이라 눈에 띄어야 한다 */}
+        {!graded && (
+          <span
+            className="absolute inset-0 rounded-md"
+            style={{ animation: 'puriPulse 2.2s var(--ease-out) infinite' }}
+          />
+        )}
+        <SparkIcon />
+      </IconButton>
+      <Divider />
 
       {(Object.keys(COLOR_HEX) as InkColor[]).map((c) => (
         <button

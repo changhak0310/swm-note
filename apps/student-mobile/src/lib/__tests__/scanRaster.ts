@@ -8,7 +8,7 @@
 //   축소는 면적 평균, 확대는 쌍선형 — 캔버스의 imageSmoothingQuality='high'와 같은 성격이다.
 import type { Raster } from '../scan/components'
 
-/** 앱의 SCAN_WIDTH (stores/liveStore.ts) */
+/** 앱의 SCAN_WIDTH (stores/documentStore.ts) */
 export const APP_SCAN_WIDTH = 1700
 
 type PdfjsModule = typeof import('pdfjs-dist/legacy/build/pdf.mjs')

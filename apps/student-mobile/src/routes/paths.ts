@@ -3,7 +3,6 @@ export const paths = {
   list: '/',
   doc: (docId: string) => `/doc/${docId}`,
   answers: (docId: string) => `/doc/${docId}/answers`,
-  live: '/live',
 
   // dev 전용 (프로덕션 번들에서는 라우트 자체가 빠진다 — routes/dev.ts)
   compare: '/dev/compare',

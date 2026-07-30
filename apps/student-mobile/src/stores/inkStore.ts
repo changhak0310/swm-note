@@ -6,8 +6,9 @@
 // "열람 중 회차"(기본 = 현재 회차)의 스트로크만 보이고, 이전 회차는 숨겨
 // 원래 workBox를 다시 쓴다. orphan 스트로크는 항상 보인다.
 import { create } from 'zustand'
-import type { Stroke, TextItem } from '../types'
+import type { Region, Stroke, TextItem } from '../types'
 import * as db from '../lib/db'
+import { attribute } from '../lib/attribution'
 import { distToStroke } from '../lib/geometry'
 
 // 스트로크 단위 지우개 히트 반경 (정규화 좌표)
@@ -32,6 +33,7 @@ type InkState = {
   setDoc: (docId: string | null) => Promise<void>
   loadPage: (page: number) => Promise<void>
   roundOf: (regionId: string | null) => number
+  reattributePage: (page: number, regions: Region[]) => void
   commitStroke: (page: number, stroke: Stroke) => void
   eraseAt: (page: number, x: number, y: number) => void
   moveStrokes: (page: number, strokeIds: string[], dx: number, dy: number) => void
@@ -97,6 +99,35 @@ export const useInkStore = create<InkState>((set, get) => ({
   },
 
   roundOf: (regionId) => (regionId ? (get().rounds[regionId] ?? 1) : 1),
+
+  /**
+   * 이 쪽의 획을 지금 구역에 다시 귀속시킨다 — 분석이 끝난 직후에 부른다.
+   *
+   * 구역은 펜이 닿은 뒤에 나오므로 첫 획은 주인 없이 확정된다 (regionId = null).
+   * 그대로 두면 그 획은 영원히 orphan이라 채점에서 빠지고, 재풀이 때 가려지지도 않는다.
+   * 살아 있는 구역에 이미 귀속된 획은 건드리지 않는다 — 다시 분석해 id가 바뀐 구역을
+   * 가리키던 획만 새 주인을 찾는다.
+   */
+  reattributePage: (page, regions) => {
+    const { docId, strokesByPage } = get()
+    const strokes = docId ? strokesByPage[page] : undefined
+    if (!docId || !strokes?.length) return
+    const alive = new Set(regions.map((r) => r.id))
+
+    let changed = false
+    const next = strokes.map((s) => {
+      if (s.regionId && alive.has(s.regionId)) return s
+      const regionId = attribute(s, regions)
+      if (regionId === s.regionId) return s
+      changed = true
+      // 회차는 새 주인의 현재 회차 — 그 문항을 풀던 중에 그은 획이다 (F-09)
+      return { ...s, regionId, attemptNo: regionId ? (get().rounds[regionId] ?? 1) : s.attemptNo }
+    })
+    if (!changed) return
+
+    set((s) => ({ strokesByPage: { ...s.strokesByPage, [page]: next } }))
+    schedulePageSave(get, docId, page)
+  },
 
   commitStroke: (page, stroke) => {
     const { docId } = get()

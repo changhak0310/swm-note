@@ -21,7 +21,7 @@ type Props = {
   regions: Region[]
   width: number
   height: number
-  /** 펜(또는 필기로 인정되는 포인터)이 이 페이지에 닿는 순간. 라이브 노트의 분석 신호 */
+  /** 펜(또는 필기로 인정되는 포인터)이 이 페이지에 닿는 순간. 에디터의 분석 신호다 */
   onInkStart?: () => void
 }
 

@@ -5,7 +5,7 @@
 // 그런데 그 여섯은 07·08·09·10·11·12로 나란하다 — 확신하는 번호 몇 개만 있으면
 // 나머지는 자리로 정해진다. 판단은 픽셀이 아니라 수열이 한다.
 //
-// 순수 함수다. 앱(liveStore)과 실측 테스트가 같은 코드를 쓴다.
+// 순수 함수다. 앱(documentStore)과 실측 테스트가 같은 코드를 쓴다.
 
 export type NumberRead = { digits: string; confidence: number } | null
 

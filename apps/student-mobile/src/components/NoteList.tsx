@@ -90,20 +90,6 @@ export function NoteList() {
           />
         </div>
         <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
-        <NavItem
-          onClick={() => void navigate(paths.live)}
-          icon={<LiveIcon />}
-          label="라이브 노트"
-          trailing={
-            <span className="rounded-full bg-[var(--brand-tint)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--text-brand)]">
-              새 기능
-            </span>
-          }
-        />
-        <p className="px-[var(--space-3)] pb-[var(--space-2)] text-[length:var(--text-caption)] text-[color:var(--text-faint)]">
-          필기하는 동안 고른 번호를 읽어줘
-        </p>
-        <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
         {/* 2차 예정 — 눌리지 않는다는 걸 disabled로 말한다 (회색 텍스트만으로는 부족) */}
         <NavItem icon={<FolderIcon />} label="폴더" muted disabled />
 
@@ -466,7 +452,8 @@ function NoteCard({
         {doc.name}
       </div>
       <div className="mt-0.5 text-[12px] text-[color:var(--text-faint)]">
-        {meta ? `${meta.regionCount}문항 · ` : ''}
+        {/* 문항은 펜이 닿은 쪽부터 세어진다 — 아직 0이면 "0문항"이라 적지 않는다 */}
+        {meta && meta.regionCount > 0 ? `${meta.regionCount}문항 · ` : ''}
         {fmtRelative(doc.lastOpenedAt)}
       </div>
       {meta?.lastResult && (
@@ -521,13 +508,6 @@ const NoteIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
     <path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z" />
     <path d="M8 4v16" />
-  </svg>
-)
-const LiveIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-    <circle cx="6.5" cy="6.5" r="2.5" />
   </svg>
 )
 const TrashIcon = () => (

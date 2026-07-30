@@ -1,6 +1,9 @@
 // F-06 정답 직접 입력 — 문항당 한 행, 20문항을 20탭으로.
 // 행은 Region[]에서 자동 생성된다. 이 화면은 분할 결과 검증을 겸한다.
-import { useMemo, useRef, useState } from 'react'
+//
+// 문항은 펜이 닿은 쪽에서만 나오므로(documentStore 「분석」) 이 화면은 들어올 때
+// 남은 쪽을 훑는다 — 안 훑으면 아직 필기하지 않은 쪽의 정답을 입력할 방법이 없다.
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AnswerEntry, Region } from '../types'
 import { useDocumentStore } from '../stores/documentStore'
@@ -26,9 +29,16 @@ export function AnswerKeyScreen() {
   const doc = useDocumentStore((s) => s.doc)
   const regionsByPage = useDocumentStore((s) => s.regionsByPage)
   const answerKey = useDocumentStore((s) => s.answerKey)
+  const sweep = useDocumentStore((s) => s.sweep)
   const store = useDocumentStore.getState()
   const navigate = useNavigate()
   const grade = useGrade()
+
+  // 아직 안 본 쪽 분석 — 행이 채워지는 동안에도 입력할 수 있다 (쪽마다 늘어난다)
+  useEffect(() => {
+    void store.analyzeAllPages()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const answerFileRef = useRef<HTMLInputElement>(null)
   const rowRefs = useRef(new Map<string, HTMLLIElement>())
@@ -118,6 +128,13 @@ export function AnswerKeyScreen() {
         />
       </header>
 
+      {sweep && (
+        <div className="border-b border-[var(--border-subtle)] bg-[var(--brand-tint)] px-[var(--space-6)] py-[var(--space-2)] text-[13px] text-[color:var(--text-brand)]">
+          문항을 찾고 있어 · <span className="num">{sweep.done}</span>/
+          <span className="num">{sweep.total}</span>쪽 — 찾는 대로 아래에 추가돼
+        </div>
+      )}
+
       {parseWarning && (
         <div className="border-b border-[var(--grade-tri-ring)] bg-[var(--grade-tri-bg)] px-[var(--space-6)] py-[var(--space-2)] text-[13px] text-[color:var(--grade-tri)]">
           {parseWarning}
@@ -127,7 +144,7 @@ export function AnswerKeyScreen() {
       <main className="puri-scroll mx-auto w-full max-w-2xl flex-1 overflow-y-auto px-[var(--space-6)] py-[var(--space-4)]">
         {rows.length === 0 ? (
           <p className="py-16 text-center text-[color:var(--text-muted)]">
-            분할된 문항이 없어. 이 PDF는 자동 채점을 지원하지 않아.
+            {sweep ? '문항을 찾는 중이야…' : '이 PDF에서 문항을 찾지 못했어.'}
           </p>
         ) : (
           <ul className="ds-card divide-y divide-[var(--border-subtle)] px-[var(--space-5)]">

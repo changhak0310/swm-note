@@ -28,7 +28,7 @@ import type { Box, ChoiceLabel, Region } from '../types'
 const VIEW_W = 720
 const HANDLE = 7          // 정규화 좌표 기준 핸들 반변
 const MIN_SIZE = 6
-// 앱의 렌더 폭 (stores/liveStore.ts). 씨앗을 앱과 같은 픽셀에서 뽑아야
+// 앱의 렌더 폭 (stores/documentStore.ts). 씨앗을 앱과 같은 픽셀에서 뽑아야
 // 라벨링하며 본 것과 채점하는 것이 같아진다
 const SCAN_WIDTH = 1700
 const VECTOR_SCAN_WIDTH = 2800

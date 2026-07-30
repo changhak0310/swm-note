@@ -98,7 +98,7 @@ suite('스캔 검출 OCR 되읽기', () => {
       }
 
       // ---------- 2. 문제 번호 — 크롭 OCR + 수열 검산 = 실제 번호 ----------
-      // 앱(liveStore.refineScanRegions)과 같은 경로: numBox → pxRect → readNumber →
+      // 앱(documentStore.refineScanRegions)과 같은 경로: numBox → pxRect → readNumber →
       // reconcileNumbering. 낱개 OCR만 보면 흔들리는 것이 정상이고, 수열까지 거쳐야
       // 배지에 뜨는 값이 나온다
       const numbered = regions.filter((rg) => rg.numBox && !rg.numSynth)
