@@ -1,50 +1,167 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+==================
+Version change: 1.0.0 → 2.0.0
+Bump rationale: 원칙 I을 재정의했다. "외부 의존 0(AI 호출 금지)"이 "로컬 우선 · AI는 선택적
+계층"으로 바뀌면서, v1.0.0에서 MAJOR 개정 사안으로 규정했던 AI 도입이 실제로 일어났다.
+후방 호환되지 않는 원칙 재정의이므로 MAJOR.
+
+Modified principles:
+  I. 외부 의존 0 (NON-NEGOTIABLE) → I. 로컬 우선 · AI는 선택적 계층 (NON-NEGOTIABLE)
+  II. 신뢰가 먼저 → II. 신뢰가 먼저 — 판정은 도구가, 해석은 AI가 (AI 권한 경계 추가)
+  III. 숫자에는 출처가 있다 (NON-NEGOTIABLE) — 변경 없음 (AI 신뢰도 임계값 적용 범위만 명시)
+  IV. 규칙의 출처는 하나 — 변경 없음
+
+Added sections: 없음 (제품 정의 리드 문단 추가)
+Removed sections: 없음
+
+Deferred TODOs: 없음
+
+Follow-up (헌법 밖 — 이 스킬 범위가 아니므로 손대지 않았다):
+  - `docs/ARCHITECTURE.md` §1 "외부 통신 없음. 서버 없음. API 키 없음."이 낡았다. 갱신 필요
+  - `docs/ROADMAP.md` §0 "보류된 결정 — 오답 원인을 누가 진단하는가"가 해소됐다. 결정 기록으로 갱신 필요
+  - `docs/prd/PRD-002` 보류 사유(AI 불가)가 해소됐다. 재개 가능
+  - 프록시 서버는 아직 존재하지 않는다. AI 기능의 선행 조건이다 (ROADMAP §11)
+
+Notes:
+  - 완화한 것은 **추론**이지 **저장**이 아니다. 학생 데이터는 여전히 기기에만 남는다(원칙 I).
+  - `design-system/README.md` 원칙 3("검증 가능한 것은 도구가 판정하고, AI는 그 위에서
+    설명만 한다")과 `ROADMAP.md` §0의 경고("원인 진단은 설명이 아니라 판정에 가깝다")를
+    원칙 II가 명시적 경계로 흡수했다 — AI의 원인 진단은 판정이 아니라 의견으로만 성립한다.
+-->
+
+# 푸리 (Puri) Constitution
+
+푸리는 **대한민국 고1~3 수능 수학 학습자**를 위한 안드로이드 태블릿 앱이다. 학생이 문제집
+PDF와 그 문제집의 정답지 PDF를 올리고 펜으로 풀면, 앱이 자동으로 채점하고, 오답에 대해서는
+필기 데이터를 분석해 원인을 짚고 오답노트로 관리한다.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. 로컬 우선 · AI는 선택적 계층 (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+학생 데이터의 저장소는 기기다. 문제집 PDF, 정답지 데이터베이스, 필기 스트로크, 채점 이력,
+오답노트는 파일시스템과 IndexedDB에만 보관해야 한다(MUST). 원격 영속 저장·계정 서버·기기 간
+동기화를 두어서는 안 된다(MUST NOT).
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**채점과 오답노트는 네트워크 없이 완전히 동작해야 한다(MUST).** AI는 그 위에 얹히는 선택적
+계층이다. 오프라인이면 오답 원인 진단만 비활성화되고 나머지 기능은 그대로 동작해야 한다(MUST).
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+AI 호출은 프록시 서버를 경유해야 한다(MUST). API 키를 클라이언트 번들에 포함해서는 안
+된다(MUST NOT).
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+**근거.** 이 앱의 원래 성질은 "외부 의존 0"이었다(`ARCHITECTURE.md` §1). v2.0.0에서 AI 오답
+원인 진단을 제품의 중심 기능으로 채택하면서 이 원칙을 재정의했다. 다만 완화한 것은 **추론**이지
+**저장**이 아니다 — 데이터는 여전히 기기에 남는다. 프록시 경유는 선택이 아니다:
+`ROADMAP.md` §11이 이미 *"배포 시 AI를 붙인다면 프록시 서버가 먼저 필요하다"* 고 적었다.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**위반 판정.** 학생 데이터를 원격에 영속 저장하거나, 네트워크 단절 시 채점이 실패하거나,
+클라이언트 번들에 API 키가 들어가면 위반이다.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### II. 신뢰가 먼저 — 판정은 도구가, 해석은 AI가
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+정답/오답 판정은 결정론적 로컬 로직만 내린다(MUST). AI가 O/X 결과를 만들거나 뒤집어서는 안
+된다(MUST NOT).
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+AI는 오답의 **원인**에 대해서만 의견을 낸다. 그 출력은 확정 사실이 아니라 의견으로 표시되어야
+한다(MUST). 확신할 수 없으면 판정하지 않는다(MUST) — 보류 상태(`unattempted`, `nokey` 등)로
+남기고, 기본값을 채워 넣어서는 안 된다(MUST NOT).
+
+AI 진단은 학생의 자가진단 **이후에** 대조 형태로 제시해야 한다(MUST). AI 문구가 학생의 판단을
+선점해서는 안 된다(MUST NOT).
+
+**근거.** `design-system/README.md` — *the app must be believed.* 한 번의 오채점이 여러 번의
+정채점보다 신뢰를 빨리 무너뜨린다. 같은 문서의 원칙 3은 *"검증 가능한 것은 도구가 판정하고,
+AI는 그 위에서 설명만 한다"* 이고, `ROADMAP.md` §0은 *"원인 진단은 설명이 아니라 판정에
+가깝다"* 고 경고했다. 그래서 경계를 여기서 명시적으로 긋는다 — **채점은 도구의 판정, 원인은
+AI의 의견.** 학생이 먼저 판단하고 AI가 대조하는 순서도 같은 이유다(`WrongNoteCard`의
+`selfCause`/`aiCause` 구조가 이미 이 구상을 담고 있다).
+
+**위반 판정.** AI 출력이 채점 결과를 바꾸거나, 의견이 아닌 확정으로 표시되거나, 자가진단보다
+먼저 노출되면 위반이다.
+
+### III. 숫자에는 출처가 있다 (NON-NEGOTIABLE)
+
+임계값·시간·횟수 같은 값은 실측이나 사람의 명시적 결정에서만 나온다. 그럴듯한 값을
+지어내서는 안 된다(MUST NOT). AI 신뢰도 컷오프와 인식 정확도 기준도 여기에 포함된다.
+
+값을 도입할 때는 출처를 함께 적어야 한다(MUST). 아직 정할 수 없으면 값을 비우고
+`[NEEDS CLARIFICATION: ...]`로 표시하되, 후보와 **무엇을 알아야 정할 수 있는지**를 같이
+남겨야 한다(MUST).
+
+**근거.** 지어낸 숫자가 코드에 박히면 나중에 "이 값 왜 이래?"에 아무도 답을 못 한다. PRD-002는
+3연속 정답 졸업 규칙을 *"근거 없이 정해진 값이다. 제거한다"* 로 삭제했다 — 근거 없는 값은
+유지 대상이 아니라 제거 대상이다.
+
+**위반 판정.** 출처 표기도 미결정 표시도 없는 숫자가 spec·plan·코드에 있으면 위반이다.
+미결정이 남은 문서는 미완성이 아니라 정직한 것이므로 위반이 아니다.
+
+### IV. 규칙의 출처는 하나
+
+같은 규칙을 두 문서에 적어서는 안 된다(MUST NOT). 이미 있는 규칙은 옮겨 적지 말고 절 번호로
+참조해야 한다(MUST).
+
+객관식 인식·마킹 판정 규칙의 유일한 출처는 `docs/research/객관식_인식.md`다. 데이터 모델과
+좌표계의 출처는 `ARCHITECTURE.md` §4·§5다. 문서와 코드가 어긋나면 **코드가 사실이며**, 고쳐야
+할 것은 문서다(MUST).
+
+**근거.** `ARCHITECTURE.md` §7.2와 `research/객관식_인식.md` §4.4가 같은 함수를 다르게 설명하고
+있었고, 오래된 쪽에는 `MIN_OVERLAP = 0.25`·형광펜 제외·동점 처리가 전부 빠져 있었다. 규칙이
+바뀔 때 한쪽만 고쳐지면 그 순간부터 두 문서 다 믿을 수 없게 된다.
+
+**위반 판정.** 기존 문서에 있는 규칙을 새 문서가 다시 서술하면 위반이다. 참조는 위반이 아니다.
+
+## 데이터와 프라이버시
+
+**대상이 미성년자(만 15~18세)다.** 이 사실이 모든 데이터 결정에 우선한다.
+
+기기를 떠나는 데이터는 오답 원인 진단에 필요한 최소한이어야 하며(MUST), 무엇이 나가는지
+설계 문서에 항목 단위로 열거해야 한다(MUST). "필기 전체"처럼 뭉뚱그린 서술은 허용하지 않는다.
+
+전송 전에 학생의 명시적 동의를 받아야 한다(MUST). 동의를 거부해도 채점과 오답노트는 전부
+사용할 수 있어야 한다(MUST) — 동의는 AI 진단이라는 부가 기능의 조건이지, 앱 사용의 조건이
+아니다.
+
+전송한 데이터가 모델 학습에 사용되도록 허용해서는 안 된다(MUST NOT). 프록시 서버는 중계만
+하며 학생 데이터를 영속 저장해서는 안 된다(MUST NOT).
+
+기술 스택은 `ARCHITECTURE.md` §2에 고정되어 있다. 새 런타임 의존성 추가는 `plan.md`의
+`Complexity Tracking`에 정당화를 적어야 한다(MUST).
+
+## 개발 워크플로
+
+기능은 `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` 순서로
+진행한다. `spec.md`는 **왜·무엇**만, `plan.md`는 **어떻게**만 담는다.
+
+판정 로직은 `apps/student-mobile/src/lib/` 아래 순수 함수로 먼저 작성하고 `vitest`로 덮어야
+한다(MUST). 렌더링·스토어에 판정 규칙을 섞지 않는다(MUST NOT).
+
+AI 계층은 포트 뒤에 분리해야 한다(MUST). 포트가 실패하거나 비활성일 때의 동작이 설계에 정의돼
+있어야 하며, 그 경로가 앱의 기본 동작이다. **AI 응답은 신뢰할 수 없는 입력으로 다룬다** —
+스키마를 검증한 뒤에만 사용하고(MUST), 검증 실패는 원인 진단 없음으로 처리한다.
+
+`plan.md`에 정의한 에러 `E1`~`EN`은 하나도 빠짐없이 어느 화면이 보여줄지 정해야 하며(MUST),
+`sh docs/check-errors.sh` 통과가 조건이다. 사용자에게 보이지 않아도 되는 에러는 그 사실을
+명시한다 — 조용히 넘어가지 않는다. E 번호는 재사용하지 않는다(MUST NOT).
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+이 헌법은 다른 모든 관행에 우선한다. 관행과 충돌하면 헌법이 이긴다. 헌법과 기존 문서가
+충돌하면 헌법이 이기고, 해당 문서를 갱신한다.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**개정 절차.** 변경 이유와 영향 범위를 문서화하고, 사용자 승인을 받은 뒤, 아래 규칙으로 버전을
+올린다. 개정 시 이 파일 상단의 Sync Impact Report를 갱신한다.
+
+- **MAJOR** — 원칙의 제거나 재정의. 학생 데이터의 원격 영속 저장 허용, 또는 AI에 채점 판정
+  권한을 부여하는 변경이 여기 해당한다
+- **MINOR** — 원칙이나 섹션의 추가, 지침의 실질적 확장
+- **PATCH** — 문구 정리, 오타, 의미가 바뀌지 않는 다듬기
+
+**준수 검토.** 모든 `plan.md`는 `Constitution Check` 게이트를 통과해야 한다. 위반은 설계를
+바꾸거나, `Complexity Tracking` 표에 *왜 필요한가 / 더 단순한 대안을 버린 이유*를 적어
+정당화해야 한다. 정당화 없는 위반은 통과시키지 않는다.
+
+문서 간 모순과 헌법 위반은 `/speckit-analyze`로 점검한다. 런타임 개발 지침은 `CLAUDE.md`를
+따른다.
+
+**Version**: 2.0.0 | **Ratified**: 2026-07-30 | **Last Amended**: 2026-07-30
