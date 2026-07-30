@@ -1,129 +1,80 @@
 'use client'
 
 // 푸리 DS — Button. primary는 화면당 하나만.
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { Slot } from '@radix-ui/react-slot'
+import { cva, type VariantProps } from 'class-variance-authority'
+import type { ReactNode } from 'react'
+import { cn } from '../../lib/utils'
 
-type Size = 'sm' | 'md' | 'lg'
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+const buttonVariants = cva(
+  // 높이가 36/44/52라도 탭 타깃은 44px 아래로 내려가지 않는다 (README §VISUAL FOUNDATIONS)
+  // `leading-none`은 반드시 size의 text-* **뒤에** 온다 — Tailwind v4의 text-*는 행간까지
+  // 같이 정해서, 앞에 두면 cn()이 뒤의 text-*로 덮으며 지워버린다 (행간이 1 → 24px가 된다).
+  // 포커스는 3px 초록 글로우다 — 브라우저 기본 파란 아웃라인을 쓰지 않는다 (README §VISUAL FOUNDATIONS).
+  // focus-visible이라 마우스 클릭에는 안 뜨고 키보드 이동에만 뜬다.
+  // 글자 버튼은 알약, 아이콘 버튼(IconButton·Toggle)은 사각 — 둘을 모양으로 갈라
+  // "읽고 누르는 것"과 "도구"를 구분한다. Chip·CauseTag도 알약이지만 크기·틴트가 달라 섞이지 않는다.
+  'inline-flex items-center justify-center gap-2 min-h-[var(--tap-min)] font-sans font-semibold ' +
+    'tracking-[var(--track-normal)] rounded-pill border select-none cursor-pointer ' +
+    'transition-[background,transform,box-shadow] duration-[var(--dur-fast)] ease-out ' +
+    'outline-none focus-visible:shadow-focus ' +
+    'active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45',
+  {
+    variants: {
+      // 경계를 만드는 수단은 하나다 — 보더를 쓰면 그림자를 얹지 않는다 (README §5 Remove unnecessary styles).
+      variant: {
+        primary: 'bg-brand text-invert border-transparent shadow-xs hover:bg-brand-hover active:bg-brand-press',
+        secondary: 'bg-paper text-strong border-border hover:bg-surface-hover active:bg-ink-150',
+        ghost: 'bg-transparent text-default border-transparent hover:bg-surface-hover active:bg-ink-150',
+        // 캔버스 위에 떠서 눈에 띄어야 하는 액션(플로팅 알약 등). 초록을 쓰면 "정답/진행"
+        // 신호와 섞이므로 잉크색을 쓴다 — 색은 진단이라는 원칙(README §색)을 지키기 위한 변형이다.
+        inverse: 'bg-strong text-invert border-transparent shadow-xs hover:bg-ink-950 active:bg-ink-950',
+        danger:
+          'bg-destructive text-invert border-transparent shadow-xs hover:bg-destructive-hover active:bg-destructive-press',
+      },
+      size: {
+        sm: 'h-9 px-3.5 text-sm leading-none',
+        md: 'h-11 px-5 text-body leading-none',
+        lg: 'h-13 px-6.5 text-body-lg leading-none',
+      },
+      block: {
+        true: 'flex w-full',
+        false: 'inline-flex w-auto',
+      },
+    },
+    defaultVariants: { variant: 'primary', size: 'md', block: false },
+  },
+)
 
-const sizes: Record<Size, { height: number; padding: string; font: string }> = {
-  sm: { height: 36, padding: '0 14px', font: 'var(--text-sm)' },
-  md: { height: 44, padding: '0 20px', font: 'var(--text-body)' },
-  lg: { height: 52, padding: '0 26px', font: 'var(--text-body-lg)' },
-}
-
-const variants: Record<
-  Variant,
-  { base: CSSProperties; hover: CSSProperties; active: CSSProperties }
-> = {
-  primary: {
-    base: {
-      background: 'var(--brand)',
-      color: 'var(--text-invert)',
-      border: '1px solid transparent',
-      boxShadow: 'var(--shadow-xs)',
-    },
-    hover: { background: 'var(--brand-hover)' },
-    active: { background: 'var(--brand-press)' },
-  },
-  secondary: {
-    base: {
-      background: 'var(--paper)',
-      color: 'var(--text-strong)',
-      border: '1px solid var(--border-default)',
-      boxShadow: 'var(--shadow-xs)',
-    },
-    hover: { background: 'var(--surface-hover)' },
-    active: { background: 'var(--ink-150)' },
-  },
-  ghost: {
-    base: {
-      background: 'transparent',
-      color: 'var(--text-default)',
-      border: '1px solid transparent',
-    },
-    hover: { background: 'var(--surface-hover)' },
-    active: { background: 'var(--ink-150)' },
-  },
-  danger: {
-    base: {
-      background: 'var(--danger)',
-      color: 'var(--text-invert)',
-      border: '1px solid transparent',
-      boxShadow: 'var(--shadow-xs)',
-    },
-    hover: { background: '#C23A3A' },
-    active: { background: '#A93131' },
-  },
-}
-
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant
-  size?: Size
-  icon?: ReactNode
-  iconRight?: ReactNode
-  block?: boolean
-}
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
+  VariantProps<typeof buttonVariants> & {
+    /** 라벨 앞 아이콘 */
+    icon?: ReactNode
+    /** 라벨 뒤 아이콘 */
+    iconRight?: ReactNode
+    /** 버튼 대신 자식 엘리먼트에 스타일을 입힌다 (링크를 버튼처럼 보이게 할 때) */
+    asChild?: boolean
+  }
 
 export function Button({
   children,
-  variant = 'primary',
-  size = 'md',
+  variant,
+  size,
+  block,
   icon = null,
   iconRight = null,
-  block = false,
-  disabled = false,
-  style,
+  asChild = false,
+  className,
   ...rest
 }: ButtonProps) {
-  const [hover, setHover] = useState(false)
-  const [active, setActive] = useState(false)
-  const s = sizes[size]
-  const v = variants[variant]
-
-  const composed: CSSProperties = {
-    display: block ? 'flex' : 'inline-flex',
-    width: block ? '100%' : 'auto',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: s.height,
-    minHeight: 'var(--tap-min)',
-    padding: s.padding,
-    fontFamily: 'var(--font-sans)',
-    fontSize: s.font,
-    fontWeight: 600,
-    letterSpacing: 'var(--track-normal)',
-    lineHeight: 1,
-    borderRadius: 'var(--radius-md)',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.45 : 1,
-    transition:
-      'background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out)',
-    transform: active && !disabled ? 'scale(0.98)' : 'scale(1)',
-    userSelect: 'none',
-    ...v.base,
-    ...(hover && !disabled ? v.hover : null),
-    ...(active && !disabled ? v.active : null),
-    ...style,
-  }
-
+  const Comp = asChild ? Slot : 'button'
   return (
-    <button
-      style={composed}
-      disabled={disabled}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => {
-        setHover(false)
-        setActive(false)
-      }}
-      onMouseDown={() => setActive(true)}
-      onMouseUp={() => setActive(false)}
-      {...rest}
-    >
-      {icon && <span style={{ display: 'inline-flex', flex: 'none' }}>{icon}</span>}
+    <Comp className={cn(buttonVariants({ variant, size, block }), className)} {...rest}>
+      {icon && <span className="inline-flex flex-none">{icon}</span>}
       {children != null && <span>{children}</span>}
-      {iconRight && <span style={{ display: 'inline-flex', flex: 'none' }}>{iconRight}</span>}
-    </button>
+      {iconRight && <span className="inline-flex flex-none">{iconRight}</span>}
+    </Comp>
   )
 }
+
+export { buttonVariants }

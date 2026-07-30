@@ -1,29 +1,45 @@
 /* 푸리 디자인 시스템 — 타이포그래피 토큰.
    원본과 한 가지 차이: 폰트를 CDN이 아니라 npm 패키지(pretendard,
    @fontsource-variable/jetbrains-mono)로 번들한다 — 이 앱은 외부 통신이 없다.
-   가변 폰트라 family 이름에 "Variable"이 붙는다. */
-:root {
+   가변 폰트라 family 이름에 "Variable"이 붙는다.
+
+   폰트·타입 스케일은 Tailwind v4 네임스페이스(--font-*, --text-*)와 이름이 겹치므로
+   `@theme`에 둔다. 그러면 `var(--text-h3)`도 그대로 살고 `text-h3` 유틸리티도 생긴다. */
+@theme {
   /* ============ FAMILIES ============ */
   --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   /* Numeric readouts (timer, counts, durations) use mono + tabular figures. */
   --font-numeric: var(--font-mono);
 
+  /* ============ TYPE SCALE (tablet-first, generous) ============ */
+  /* `--text-X--line-height`는 Tailwind가 `text-X` 하나로 크기+행간을 묶게 하는 짝 이름이다. */
+  --text-display: 34px;  --text-display--line-height: 42px;   /* screen titles */
+  --text-h1:      26px;  --text-h1--line-height:      34px;
+  --text-h2:      21px;  --text-h2--line-height:      30px;
+  --text-h3:      18px;  --text-h3--line-height:      26px;
+  --text-body-lg: 17px;  --text-body-lg--line-height: 28px;   /* problem text */
+  --text-body:    15px;  --text-body--line-height:    24px;
+  --text-sm:      13px;  --text-sm--line-height:      20px;   /* Tailwind 기본 14px를 덮는다 */
+  --text-caption: 12px;  --text-caption--line-height: 16px;
+}
+
+:root {
   /* ============ WEIGHTS ============ */
   --w-regular:  400;
   --w-medium:   500;
   --w-semibold: 600;
   --w-bold:     700;
 
-  /* ============ TYPE SCALE (tablet-first, generous) ============ */
-  --text-display:   34px;  --lh-display:   42px;   /* screen titles */
-  --text-h1:        26px;  --lh-h1:        34px;
-  --text-h2:        21px;  --lh-h2:        30px;
-  --text-h3:        18px;  --lh-h3:        26px;
-  --text-body-lg:   17px;  --lh-body-lg:   28px;   /* problem text */
-  --text-body:      15px;  --lh-body:      24px;
-  --text-sm:        13px;  --lh-sm:        20px;
-  --text-caption:   12px;  --lh-caption:   16px;
+  /* 행간 단독 참조용 — 위 짝 이름과 같은 값이다 */
+  --lh-display: 42px;
+  --lh-h1:      34px;
+  --lh-h2:      30px;
+  --lh-h3:      26px;
+  --lh-body-lg: 28px;
+  --lh-body:    24px;
+  --lh-sm:      20px;
+  --lh-caption: 16px;
 
   /* ============ TRACKING ============ */
   --track-tight:  -0.02em;   /* display / headings */

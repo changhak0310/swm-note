@@ -3,7 +3,8 @@
 // 푸리 DS — WrongNoteCard. 자동 오답노트 카드.
 // 문제만 보여준다 — 필기는 "필기 보기"를 누르기 전까지 마스크 뒤에 숨긴다
 // (기억에 의존한 재풀이 방지). 자가진단 vs AI 대조를 함께 기록하고 어긋남을 표시한다.
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import { cn } from '../../lib/utils'
 import { GradeBadge, type GradeInput } from '../grading/GradeBadge'
 import { CauseTag, type CauseInput } from '../grading/CauseTag'
 import { ReviewChecks } from './ReviewChecks'
@@ -35,7 +36,7 @@ const Copy = () => (
   </I>
 )
 
-export type WrongNoteCardProps = {
+export type WrongNoteCardProps = React.HTMLAttributes<HTMLDivElement> & {
   number: number | string
   grade?: GradeInput
   concept?: string
@@ -50,8 +51,9 @@ export type WrongNoteCardProps = {
   revealed?: boolean
   onReveal?: () => void
   onTwin?: () => void
-  style?: CSSProperties
 }
+
+const ROW_LABEL = 'text-caption text-faint w-[42px]'
 
 export function WrongNoteCard({
   number,
@@ -67,7 +69,8 @@ export function WrongNoteCard({
   revealed: revealedProp,
   onReveal,
   onTwin,
-  style,
+  className,
+  ...rest
 }: WrongNoteCardProps) {
   const [revealedState, setRevealedState] = useState(false)
   const revealed = revealedProp ?? revealedState
@@ -81,147 +84,60 @@ export function WrongNoteCard({
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        width: 320,
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-sm)',
-        overflow: 'hidden',
-        ...style,
-      }}
+      className={cn(
+        'flex flex-col w-80 bg-card border border-border-subtle rounded-lg shadow-sm overflow-hidden',
+        className,
+      )}
+      {...rest}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px 10px' }}>
+      <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-2.5">
         <GradeBadge grade={grade} filled />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 'var(--text-h3)', fontWeight: 600, color: 'var(--text-strong)' }}>
-            {number}번
-          </span>
-          {concept && (
-            <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-muted)' }}>{concept}</span>
-          )}
+        <div className="flex flex-col gap-px flex-1 min-w-0">
+          <span className="text-h3 font-semibold text-strong">{number}번</span>
+          {concept && <span className="text-caption text-muted-foreground">{concept}</span>}
         </div>
-        {seconds != null && (
-          <span
-            style={{
-              fontFamily: 'var(--font-numeric)',
-              fontVariantNumeric: 'tabular-nums',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--text-muted)',
-            }}
-          >
-            {fmt(seconds)}
-          </span>
-        )}
+        {seconds != null && <span className="num text-sm text-muted-foreground">{fmt(seconds)}</span>}
       </div>
 
-      <div
-        style={{
-          position: 'relative',
-          margin: '0 16px',
-          borderRadius: 'var(--radius-md)',
-          overflow: 'hidden',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div
-          style={{
-            minHeight: 96,
-            background: 'var(--surface-sunken)',
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--text-faint)',
-            padding: 18,
-          }}
-        >
+      <div className="relative mx-4 rounded-md overflow-hidden border border-border-subtle">
+        <div className="min-h-24 p-[18px] grid place-items-center bg-surface-sunken text-sm text-faint">
           {problemSlot ?? '문제 이미지'}
         </div>
         {!revealed && (
           <button
+            type="button"
             onClick={reveal}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              background: 'var(--surface-mask)',
-              color: 'var(--text-muted)',
-              border: 'none',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 'var(--text-sm)',
-              fontWeight: 500,
-              cursor: 'pointer',
-              backgroundImage:
-                'repeating-linear-gradient(135deg, transparent, transparent 9px, rgba(0,0,0,0.025) 9px, rgba(0,0,0,0.025) 18px)',
-            }}
+            // 사선 해칭 — 마스크가 "가려져 있다"는 걸 색만이 아니라 무늬로도 말한다
+            className="absolute inset-0 flex items-center justify-center gap-[7px] border-none cursor-pointer
+                       bg-surface-mask text-muted-foreground font-sans text-sm font-medium
+                       bg-[repeating-linear-gradient(135deg,transparent,transparent_9px,rgba(0,0,0,0.025)_9px,rgba(0,0,0,0.025)_18px)]"
           >
             <Eye /> 필기 보기
           </button>
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-faint)', width: 42 }}>
-            내 진단
-          </span>
-          {selfCause ? (
-            <CauseTag cause={selfCause} size="sm" />
-          ) : (
-            <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-faint)' }}>—</span>
-          )}
+      <div className="flex flex-col gap-2 px-4 py-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={ROW_LABEL}>내 진단</span>
+          {selfCause ? <CauseTag cause={selfCause} size="sm" /> : <span className="text-caption text-faint">—</span>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-faint)', width: 42 }}>
-            AI 대조
-          </span>
-          {aiCause ? (
-            <CauseTag cause={aiCause} size="sm" />
-          ) : (
-            <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-faint)' }}>—</span>
-          )}
-          {mismatch && (
-            <span style={{ fontSize: 'var(--text-caption)', color: 'var(--grade-tri)', fontWeight: 500 }}>
-              · 어긋남
-            </span>
-          )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={ROW_LABEL}>AI 대조</span>
+          {aiCause ? <CauseTag cause={aiCause} size="sm" /> : <span className="text-caption text-faint">—</span>}
+          {mismatch && <span className="text-caption font-medium text-grade-tri">· 어긋남</span>}
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-          padding: '12px 16px',
-          borderTop: '1px solid var(--border-subtle)',
-          background: 'var(--ink-50)',
-        }}
-      >
+      <div className="flex items-center justify-between gap-2.5 px-4 py-3 border-t border-border-subtle bg-ink-50">
         <ReviewChecks count={reviewCount} graduated={graduated} size="sm" />
         {twin && (
           <button
+            type="button"
             onClick={onTwin}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '7px 12px',
-              background: 'var(--paper)',
-              color: 'var(--text-default)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--text-sm)',
-              fontWeight: 500,
-              fontFamily: 'var(--font-sans)',
-              cursor: 'pointer',
-            }}
+            className="inline-flex items-center gap-1.5 px-3 py-[7px] rounded-md cursor-pointer
+                       bg-paper text-default border border-border font-sans text-sm font-medium
+                       hover:bg-surface-hover"
           >
             <Copy /> 쌍둥이 문제
           </button>

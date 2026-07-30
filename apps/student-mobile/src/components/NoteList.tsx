@@ -5,7 +5,17 @@ import type { Document } from '../types'
 import { useDocumentStore, type ListMeta } from '../stores/documentStore'
 import { paths } from '../routes/paths'
 import { fmtRelative } from '../lib/format'
-import { Button } from '@puri/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  IconButton,
+  Input,
+  NavItem,
+} from '@puri/ui'
 import logo from '@puri/ui/assets/logo.svg'
 
 export function NoteList() {
@@ -59,14 +69,14 @@ export function NoteList() {
           <span className="ds-wordmark text-[length:var(--text-h3)]">푸리 노트</span>
         </div>
         <div className="mt-[var(--space-2)] flex flex-col gap-0.5">
-          <SideItem
+          <NavItem
             active={view === 'notes'}
             onClick={() => setView('notes')}
             icon={<NoteIcon />}
             label="모든 노트"
             trailing={<span className="num text-[color:var(--text-faint)]">{notes.length}</span>}
           />
-          <SideItem
+          <NavItem
             active={view === 'trash'}
             onClick={() => setView('trash')}
             icon={<TrashIcon />}
@@ -80,7 +90,7 @@ export function NoteList() {
           />
         </div>
         <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
-        <SideItem
+        <NavItem
           onClick={() => void navigate(paths.live)}
           icon={<LiveIcon />}
           label="라이브 노트"
@@ -94,10 +104,9 @@ export function NoteList() {
           필기하는 동안 고른 번호를 읽어줘
         </p>
         <div className="mx-[var(--space-2)] my-[var(--space-3)] h-px bg-[var(--border-subtle)]" />
-        <div className="flex items-center gap-[var(--space-3)] rounded-[10px] px-[var(--space-3)] py-[var(--space-2)] text-[color:var(--text-muted)]">
-          <FolderIcon />
-          <span className="flex-1 text-[15px] font-medium">폴더</span>
-        </div>
+        {/* 2차 예정 — 눌리지 않는다는 걸 disabled로 말한다 (회색 텍스트만으로는 부족) */}
+        <NavItem icon={<FolderIcon />} label="폴더" muted disabled />
+
         <p className="px-[var(--space-3)] text-[length:var(--text-caption)] text-[color:var(--text-faint)]">
           폴더는 2차에서 제공돼
         </p>
@@ -146,12 +155,14 @@ export function NoteList() {
                 있어.
               </div>
             </div>
-            <button
-              className="flex-none self-end px-1 py-1.5 text-[14px] font-semibold text-[color:var(--text-brand)]"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-none self-end px-1 text-brand-ink"
               onClick={dismissBanner}
             >
               확인
-            </button>
+            </Button>
           </div>
         )}
 
@@ -198,158 +209,161 @@ export function NoteList() {
 
         {/* FAB — 새 PDF 올리기 (F-02) */}
         {view === 'notes' && (
-          <button
-            className="sticky bottom-5 float-right mt-[var(--space-5)] grid h-[60px] w-[60px] place-items-center rounded-full text-white shadow-[var(--shadow-lg)] disabled:opacity-50"
-            style={{ background: 'var(--brand)' }}
+          <IconButton
+            variant="solid"
+            label="PDF 올리기"
+            className="sticky bottom-5 float-right mt-5 size-[60px] rounded-full shadow-lg"
             disabled={importing}
-            aria-label="PDF 올리기"
             onClick={() => fileRef.current?.click()}
           >
             {importing ? <Spinner /> : <PencilIcon />}
-          </button>
+          </IconButton>
         )}
         <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={onFile} />
       </main>
 
       {/* ---------- 정답지 슬롯 (F-02 규칙 1) ---------- */}
+      {/* 이 하나만 닫을 수 없다 — 올리든 건너뛰든 선택을 해야 문서가 열린다.
+          그래서 Escape·바깥 클릭을 막는다. 나머지 다이얼로그는 기본대로 닫힌다. */}
       {answerPdfPromptDocId && (
-        <Modal>
-          <h2 className="text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-            정답지 PDF도 있나요?
-          </h2>
-          <p className="mt-1.5 text-[14px] text-[color:var(--text-muted)]">
-            정답지를 올리면 정답을 자동으로 불러와. 나중에 정답 입력 화면에서 올릴 수도 있어.
-          </p>
-          <div className="mt-[var(--space-5)] flex justify-end gap-[var(--space-2)]">
-            <Button variant="ghost" onClick={() => void store.skipAnswerPdf().then(openAfterPrompt)}>
-              건너뛰기
-            </Button>
-            <Button onClick={() => answerFileRef.current?.click()}>정답지 올리기</Button>
-          </div>
-          <input
-            ref={answerFileRef}
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              e.target.value = ''
-              if (f) void store.attachAnswerPdf(f).then(openAfterPrompt)
-            }}
-          />
-        </Modal>
+        <Dialog open>
+          <DialogContent
+            onEscapeKeyDown={(e) => e.preventDefault()}
+            onPointerDownOutside={(e) => e.preventDefault()}
+          >
+            <DialogTitle>정답지 PDF도 있나요?</DialogTitle>
+            <DialogDescription>
+              정답지를 올리면 정답을 자동으로 불러와. 나중에 정답 입력 화면에서 올릴 수도 있어.
+            </DialogDescription>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => void store.skipAnswerPdf().then(openAfterPrompt)}>
+                건너뛰기
+              </Button>
+              <Button onClick={() => answerFileRef.current?.click()}>정답지 올리기</Button>
+            </DialogFooter>
+            <input
+              ref={answerFileRef}
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (f) void store.attachAnswerPdf(f).then(openAfterPrompt)
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* ---------- 길게 누르기 메뉴 (F-01) ---------- */}
       {menuDoc && (
-        <Modal onClose={() => setMenuDoc(null)}>
-          <h2 className="truncate text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-            {menuDoc.name}
-          </h2>
-          <div className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
-            <Button
-              variant="secondary"
-              block
-              onClick={() => {
-                setRenaming(menuDoc)
-                setMenuDoc(null)
-              }}
-            >
-              이름 변경
-            </Button>
-            <Button
-              variant="danger"
-              block
-              onClick={() => {
-                setConfirmDelete(menuDoc)
-                setMenuDoc(null)
-              }}
-            >
-              삭제
-            </Button>
-          </div>
-        </Modal>
+        <Dialog open onOpenChange={(o) => !o && setMenuDoc(null)}>
+          <DialogContent>
+            <DialogTitle className="truncate">{menuDoc.name}</DialogTitle>
+            <div className="mt-4 flex flex-col gap-2">
+              <Button
+                variant="secondary"
+                block
+                onClick={() => {
+                  setRenaming(menuDoc)
+                  setMenuDoc(null)
+                }}
+              >
+                이름 변경
+              </Button>
+              <Button
+                variant="danger"
+                block
+                onClick={() => {
+                  setConfirmDelete(menuDoc)
+                  setMenuDoc(null)
+                }}
+              >
+                삭제
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {confirmDelete && (
-        <Modal onClose={() => setConfirmDelete(null)}>
-          <h2 className="text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-            노트를 삭제할까?
-          </h2>
-          <p className="mt-1.5 text-[14px] text-[color:var(--text-muted)]">
-            휴지통으로 이동돼. 휴지통에서 언제든 복원할 수 있어.
-          </p>
-          <div className="mt-[var(--space-5)] flex justify-end gap-[var(--space-2)]">
-            <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
-              취소
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                void store.deleteDocument(confirmDelete.id)
-                setConfirmDelete(null)
-              }}
-            >
-              삭제
-            </Button>
-          </div>
-        </Modal>
+        <Dialog open onOpenChange={(o) => !o && setConfirmDelete(null)}>
+          <DialogContent>
+            <DialogTitle>노트를 삭제할까?</DialogTitle>
+            <DialogDescription>휴지통으로 이동돼. 휴지통에서 언제든 복원할 수 있어.</DialogDescription>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+                취소
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  void store.deleteDocument(confirmDelete.id)
+                  setConfirmDelete(null)
+                }}
+              >
+                삭제
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* ---------- 휴지통 메뉴: 복원 / 영구 삭제 ---------- */}
       {trashMenuDoc && (
-        <Modal onClose={() => setTrashMenuDoc(null)}>
-          <h2 className="truncate text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-            {trashMenuDoc.name}
-          </h2>
-          <div className="mt-[var(--space-4)] flex flex-col gap-[var(--space-2)]">
-            <Button
-              variant="secondary"
-              block
-              onClick={() => {
-                void store.restoreDocument(trashMenuDoc.id)
-                setTrashMenuDoc(null)
-              }}
-            >
-              복원
-            </Button>
-            <Button
-              variant="danger"
-              block
-              onClick={() => {
-                setConfirmPurge(trashMenuDoc)
-                setTrashMenuDoc(null)
-              }}
-            >
-              영구 삭제
-            </Button>
-          </div>
-        </Modal>
+        <Dialog open onOpenChange={(o) => !o && setTrashMenuDoc(null)}>
+          <DialogContent>
+            <DialogTitle className="truncate">{trashMenuDoc.name}</DialogTitle>
+            <div className="mt-4 flex flex-col gap-2">
+              <Button
+                variant="secondary"
+                block
+                onClick={() => {
+                  void store.restoreDocument(trashMenuDoc.id)
+                  setTrashMenuDoc(null)
+                }}
+              >
+                복원
+              </Button>
+              <Button
+                variant="danger"
+                block
+                onClick={() => {
+                  setConfirmPurge(trashMenuDoc)
+                  setTrashMenuDoc(null)
+                }}
+              >
+                영구 삭제
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {confirmPurge && (
-        <Modal onClose={() => setConfirmPurge(null)}>
-          <h2 className="text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-            영구 삭제할까?
-          </h2>
-          <p className="mt-1.5 text-[14px] text-[color:var(--text-muted)]">
-            PDF 파일과 필기·회차·정답이 모두 삭제되고 되돌릴 수 없어.
-          </p>
-          <div className="mt-[var(--space-5)] flex justify-end gap-[var(--space-2)]">
-            <Button variant="ghost" onClick={() => setConfirmPurge(null)}>
-              취소
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                void store.purgeDocument(confirmPurge.id)
-                setConfirmPurge(null)
-              }}
-            >
-              영구 삭제
-            </Button>
-          </div>
-        </Modal>
+        <Dialog open onOpenChange={(o) => !o && setConfirmPurge(null)}>
+          <DialogContent>
+            <DialogTitle>영구 삭제할까?</DialogTitle>
+            <DialogDescription>
+              PDF 파일과 필기·회차·정답이 모두 삭제되고 되돌릴 수 없어.
+            </DialogDescription>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setConfirmPurge(null)}>
+                취소
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  void store.purgeDocument(confirmPurge.id)
+                  setConfirmPurge(null)
+                }}
+              >
+                영구 삭제
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {renaming && (
@@ -396,14 +410,23 @@ function NoteCard({
   const missing = meta?.fileMissing ?? false
 
   return (
-    <div
-      className="cursor-pointer select-none"
+    // 카드 전체가 버튼이다 — div로 두면 Tab으로 닿지 않아 키보드로는 노트를 못 연다.
+    // 길게 누르기 메뉴는 포인터 전용이라, 키보드 사용자를 위해 Shift+F10/메뉴키도 받는다.
+    <button
+      type="button"
+      className="w-full cursor-pointer select-none text-left"
       onPointerDown={startPress}
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
       onContextMenu={(e) => {
         e.preventDefault()
         onMenu()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+          e.preventDefault()
+          onMenu()
+        }
       }}
       onClick={() => {
         if (longPressed.current) return
@@ -451,61 +474,12 @@ function NoteCard({
           {meta.lastResult.total}문항 중 {meta.lastResult.wrong}개 틀림
         </div>
       )}
-    </div>
+    </button>
   )
 }
 
 // ============================================================ 소품
 
-function SideItem({
-  icon,
-  label,
-  trailing,
-  active,
-  muted,
-  onClick,
-}: {
-  icon: React.ReactNode
-  label: string
-  trailing?: React.ReactNode
-  active?: boolean
-  muted?: boolean
-  onClick?: () => void
-}) {
-  return (
-    <div
-      className="flex cursor-pointer items-center gap-[var(--space-3)] rounded-[12px] px-[var(--space-3)] py-[var(--space-2)]"
-      onClick={onClick}
-      style={{
-        background: active ? 'var(--ink-150)' : 'transparent',
-        color: muted ? 'var(--text-faint)' : 'var(--text-default)',
-      }}
-    >
-      {icon}
-      <span className="flex-1 text-[15px]" style={{ fontWeight: active ? 600 : 500 }}>
-        {label}
-      </span>
-      {trailing}
-    </div>
-  )
-}
-
-function Modal({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-40 grid place-items-center p-6"
-      style={{ background: 'rgba(27,31,22,0.32)', backdropFilter: 'blur(3px)' }}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-[var(--radius-xl)] bg-[var(--paper)] p-[var(--space-6)] shadow-[var(--shadow-lg)]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
 
 function RenameModal({
   doc,
@@ -518,26 +492,26 @@ function RenameModal({
 }) {
   const [name, setName] = useState(doc.name)
   return (
-    <Modal onClose={onClose}>
-      <h2 className="text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-        이름 변경
-      </h2>
-      <input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && name.trim() && onSave(name)}
-        className="mt-[var(--space-4)] h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--paper)] px-3.5 text-[15px] text-[color:var(--text-strong)] outline-none focus:border-[var(--border-focus)] focus:shadow-[var(--shadow-focus)]"
-      />
-      <div className="mt-[var(--space-5)] flex justify-end gap-[var(--space-2)]">
-        <Button variant="ghost" onClick={onClose}>
-          취소
-        </Button>
-        <Button disabled={!name.trim()} onClick={() => onSave(name)}>
-          저장
-        </Button>
-      </div>
-    </Modal>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogTitle>이름 변경</DialogTitle>
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && name.trim() && onSave(name)}
+          containerClassName="mt-4"
+        />
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            취소
+          </Button>
+          <Button disabled={!name.trim()} onClick={() => onSave(name)}>
+            저장
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

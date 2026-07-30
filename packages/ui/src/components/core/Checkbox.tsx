@@ -1,67 +1,64 @@
 'use client'
 
 // 푸리 DS — Checkbox. 회독 체크 □1□2□3의 기반이기도 하다.
-import type { CSSProperties } from 'react'
+// Radix 위에 올렸다 — 스페이스바 토글·aria-checked·라벨 연결을 직접 안 짜도 된다.
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
 
-type Size = 'sm' | 'md' | 'lg'
+const boxVariants = cva(
+  'grid place-items-center flex-none rounded-sm border-[1.5px] text-invert cursor-pointer ' +
+    'transition-[background,border-color] duration-[var(--dur-fast)] ease-out ' +
+    'bg-paper border-border-strong ' +
+    'data-[state=checked]:bg-brand data-[state=checked]:border-brand ' +
+    'focus-visible:outline-none focus-visible:shadow-focus ' +
+    'disabled:cursor-not-allowed',
+  {
+    variants: {
+      size: { sm: 'size-5', md: 'size-6', lg: 'size-7' },
+    },
+    defaultVariants: { size: 'md' },
+  },
+)
 
-export type CheckboxProps = {
-  checked?: boolean
-  onChange?: (checked: boolean, event: React.ChangeEvent<HTMLInputElement>) => void
-  label?: string
-  size?: Size
-  disabled?: boolean
-  style?: CSSProperties
-}
+export type CheckboxProps = Omit<
+  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>,
+  // onChange는 button의 ChangeEventHandler라 우리 (checked: boolean) => void와 충돌한다
+  'onCheckedChange' | 'checked' | 'onChange'
+> &
+  VariantProps<typeof boxVariants> & {
+    checked?: boolean
+    onChange?: (checked: boolean) => void
+    label?: string
+  }
 
 export function Checkbox({
   checked = false,
   onChange,
   label,
-  size = 'md',
+  size,
   disabled = false,
-  style,
+  className,
+  ...rest
 }: CheckboxProps) {
-  const d = size === 'sm' ? 20 : size === 'lg' ? 28 : 24
-
   return (
     <label
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        userSelect: 'none',
-        ...style,
-      }}
+      className={cn(
+        'inline-flex items-center gap-2.5 select-none',
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+        className,
+      )}
     >
-      <input
-        type="checkbox"
+      <CheckboxPrimitive.Root
         checked={checked}
         disabled={disabled}
-        onChange={(e) => onChange?.(e.target.checked, e)}
-        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-      />
-      <span
-        style={{
-          width: d,
-          height: d,
-          flex: 'none',
-          borderRadius: 'var(--radius-sm)',
-          display: 'grid',
-          placeItems: 'center',
-          background: checked ? 'var(--brand)' : 'var(--paper)',
-          border: `1.5px solid ${checked ? 'var(--brand)' : 'var(--border-strong)'}`,
-          transition:
-            'background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out)',
-          color: 'var(--text-invert)',
-        }}
+        onCheckedChange={(v) => onChange?.(v === true)}
+        className={boxVariants({ size })}
+        {...rest}
       >
-        {checked && (
+        <CheckboxPrimitive.Indicator className="grid place-items-center">
           <svg
-            width={d * 0.6}
-            height={d * 0.6}
+            className="size-[60%]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -71,11 +68,9 @@ export function Checkbox({
           >
             <path d="M20 6 9 17l-5-5" />
           </svg>
-        )}
-      </span>
-      {label && (
-        <span style={{ fontSize: 'var(--text-body)', color: 'var(--text-default)' }}>{label}</span>
-      )}
+        </CheckboxPrimitive.Indicator>
+      </CheckboxPrimitive.Root>
+      {label && <span className="text-body text-default">{label}</span>}
     </label>
   )
 }

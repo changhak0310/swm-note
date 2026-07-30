@@ -36,7 +36,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 | 2 | `docs/screens/INDEX.md` | 이 화면이 어디서 오고 어디로 가는지 |
 | 3 | `packages/ui/src/index.ts` | **이미 있는 컴포넌트 12개.** 중복 제작 방지 |
 | 4 | `docs/design-system/README.md` | 색 철학·카피 톤·금지 사항 |
-| 5 | `packages/ui/src/styles/tokens/{colors,spacing,typography}.css` | 하드코딩 금지. 전부 `var()` |
+| 5 | `packages/ui/src/styles/tokens/{colors,spacing,typography}.css` + `theme.css` | 하드코딩 금지. Tailwind 토큰 유틸리티로 쓴다 |
 | 6 | 유사 화면 **최소 1개** | `components/NoteList.tsx`, `Editor.tsx`, `AnswerKeyScreen.tsx` 중 가까운 것 |
 | 7 | `apps/student-mobile/src/routes/index.tsx` · `paths.ts` | 라우트 배선 관례 |
 
@@ -93,8 +93,8 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 ## 5. 끝내기 전에
 
-1. **`pnpm -C apps/student-mobile exec tsc --noEmit`** — 통과할 때까지
-2. **진열 페이지에 추가** — 새 컴포넌트를 만들었다면 `components/DesignGallery.tsx`에 상태별로 한 줄. **나중에 몰아서 하면 절대 안 한다**
+1. **`pnpm typecheck`** — 통과할 때까지 (앱과 `@puri/ui` 둘 다 돈다)
+2. **갤러리에 추가** — 새 컴포넌트를 만들었다면 `packages/ui/playground/Gallery.tsx`에 상태별로 한 줄. **나중에 몰아서 하면 절대 안 한다**
 3. **화면 문서와 대조** — `보여줄 것` 항목이 전부 들어갔는지, 상태 4종이 다 있는지
 4. **`sh docs/check-errors.sh`** — SDD 에러가 다 배치됐는지
 
@@ -119,7 +119,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 ## 확인
 - tsc --noEmit ✅
 - check-errors.sh ✅
-- DesignGallery 추가 ✅ / 해당 없음
+- Gallery 추가 ✅ / 해당 없음
 ```
 
 ---
@@ -129,6 +129,6 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 - **화면 문서 없이 짐작으로 만들기** — 멈추고 물어본다
 - **정상 상태만 만들기** — 4종 전부
 - **새 컴포넌트를 화면 파일에 인라인으로 만들기** — 보고하고 넘긴다
-- **토큰 없는 색·간격 하드코딩** — 보고한다
+- **토큰 없는 색·간격 하드코딩** — 보고한다. `text-[15px]`처럼 arbitrary 값으로 우회하지 않는다
 - **화면 문서에 없는 기능 추가** — "이것도 있으면 좋겠다"는 PRD로 되돌아간다
 - **시각 스타일을 조용히 바꾸기** — 디자인 시스템에 문제를 발견하면 고치지 말고 보고한다

@@ -1,5 +1,31 @@
+/* 반경·그림자·이징은 Tailwind v4 네임스페이스(--radius-*, --shadow-*, --ease-*)와
+   이름이 겹치므로 `@theme`에 둔다 — `rounded-lg`가 14px, `shadow-sm`이 푸리 그림자가 된다. */
+@theme {
+  /* ============ RADII ============ */
+  /* Soft, calm corners — never fully pill except on chips/badges. */
+  --radius-sm:   6px;
+  --radius-md:   10px;   /* inputs, buttons */
+  --radius-lg:   14px;   /* cards */
+  --radius-xl:   20px;   /* large panels / sheets */
+  --radius-pill: 999px;  /* chips, grade badges */
+
+  /* ============ SHADOWS ============ */
+  /* Warm, low, diffuse — a study tool, not a flashy dashboard. */
+  --shadow-xs: 0 1px 2px rgba(27, 31, 22, 0.05);
+  --shadow-sm: 0 1px 3px rgba(27, 31, 22, 0.06), 0 1px 2px rgba(27, 31, 22, 0.04);
+  --shadow-md: 0 4px 10px rgba(27, 31, 22, 0.06), 0 2px 4px rgba(27, 31, 22, 0.04);
+  --shadow-lg: 0 12px 28px rgba(27, 31, 22, 0.10), 0 4px 10px rgba(27, 31, 22, 0.05);
+  --shadow-focus: 0 0 0 3px rgba(38, 166, 94, 0.22);
+
+  /* ============ MOTION ============ */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
 :root {
   /* ============ SPACING (4px base) ============ */
+  /* Tailwind 기본 간격 스케일이 이미 4px 배수라 `p-4`가 `var(--space-4)`와 같은 16px다.
+     새 코드는 `p-4`를 쓴다. 이 변수들은 인라인 style이 남은 곳을 위해 유지한다. */
   --space-1:  4px;
   --space-2:  8px;
   --space-3:  12px;
@@ -11,32 +37,14 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* ============ RADII ============ */
-  /* Soft, calm corners — never fully pill except on chips/badges. */
-  --radius-sm:   6px;
-  --radius-md:   10px;   /* inputs, buttons */
-  --radius-lg:   14px;   /* cards */
-  --radius-xl:   20px;   /* large panels / sheets */
-  --radius-pill: 999px;  /* chips, grade badges */
-
   /* ============ BORDERS ============ */
   --border-w: 1px;
   --border-w-strong: 1.5px;
 
-  /* ============ SHADOWS ============ */
-  /* Warm, low, diffuse — a study tool, not a flashy dashboard. */
-  --shadow-xs: 0 1px 2px rgba(27, 31, 22, 0.05);
-  --shadow-sm: 0 1px 3px rgba(27, 31, 22, 0.06), 0 1px 2px rgba(27, 31, 22, 0.04);
-  --shadow-md: 0 4px 10px rgba(27, 31, 22, 0.06), 0 2px 4px rgba(27, 31, 22, 0.04);
-  --shadow-lg: 0 12px 28px rgba(27, 31, 22, 0.10), 0 4px 10px rgba(27, 31, 22, 0.05);
-  --shadow-focus: 0 0 0 3px rgba(38, 166, 94, 0.22);
-
   /* ============ MOTION ============ */
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);   /* @kind other */
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);    /* @kind other */
-  --dur-fast: 120ms;   /* @kind other */
-  --dur-base: 200ms;   /* @kind other */
-  --dur-slow: 320ms;   /* @kind other */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
 
   /* ============ LAYOUT ============ */
   --tap-min: 44px;        /* minimum touch target (tablet) */

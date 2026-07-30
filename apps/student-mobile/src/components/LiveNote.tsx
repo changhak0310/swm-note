@@ -13,7 +13,7 @@ import { detectMarks } from '../lib/liveDetect'
 import { paths } from '../routes/paths'
 import { useInkStore } from '../stores/inkStore'
 import { getLivePdf, IDLE_ANALYSIS, useLiveStore, type PageAnalysis } from '../stores/liveStore'
-import { Button, Checkbox } from '@puri/ui'
+import { Button, Checkbox, IconButton } from '@puri/ui'
 import { PenToolbar } from './PenToolbar'
 import { PageScroller } from './PageScroller'
 import { PdfCanvas } from './PdfCanvas'
@@ -64,15 +64,11 @@ export function LiveNote() {
     <div className="flex h-dvh flex-col overflow-hidden bg-[var(--paper)]">
       {/* ---------- 상단 바 ---------- */}
       <header className="flex h-[60px] flex-none items-center gap-[var(--space-2)] border-b border-[var(--border-subtle)] px-[var(--space-4)]">
-        <button
-          aria-label="목록으로"
-          className="grid h-11 w-11 place-items-center rounded-[10px] text-[color:var(--text-default)]"
-          onClick={close}
-        >
+        <IconButton label="목록으로" onClick={close}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
-        </button>
+        </IconButton>
         <span className="ml-0.5 truncate text-[20px] font-semibold text-[color:var(--text-strong)]">
           라이브 노트
         </span>
@@ -155,12 +151,9 @@ export function LiveNote() {
       {message && (
         <div className="flex flex-none items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--grade-tri-bg)] px-[var(--space-5)] py-[var(--space-3)] text-[14px] text-[color:var(--text-default)]">
           <span className="flex-1">{message}</span>
-          <button
-            className="text-[13px] font-semibold text-[color:var(--text-brand)]"
-            onClick={store.dismissMessage}
-          >
+          <Button variant="ghost" size="sm" className="px-1 text-brand-ink" onClick={store.dismissMessage}>
             확인
-          </button>
+          </Button>
         </div>
       )}
 

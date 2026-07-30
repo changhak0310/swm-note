@@ -154,12 +154,26 @@ apps/student-mobile/
 |---|---|---|
 | 소유 | 토큰·브랜드 에셋·재사용 컴포넌트 | 화면 조합, 라우팅, 상태, 앱 전용 조각 |
 | 의존 방향 | 앱을 **모른다** | `@puri/ui`를 import 한다 |
-| 스타일 | 인라인 `CSSProperties` + `var(--token)`. **Tailwind 금지** | 앱이 원하는 도구를 쓴다 (현재 Tailwind v4) |
+| 스타일 | Tailwind + CVA (shadcn/ui 규약) | 같음 |
 
-- **Tailwind가 패키지에 들어가면 안 되는 이유**: 디자인 시스템이 특정 앱의 스타일 도구에 묶이면, 그 도구를 안 쓰는 앱은 컴포넌트를 못 쓴다. 현재 12개 컴포넌트는 `className`을 하나도 쓰지 않는다.
-- **토큰은 `var()`로만 참조한다.** 값이 없으면 컴포넌트에 하드코딩하지 말고 `packages/ui/src/styles/tokens/*.css`에 먼저 추가한다.
+### 3.2 스타일 규약 — Tailwind + shadcn/ui
+
+**소비하는 앱은 Tailwind를 반드시 쓴다.** 디자인 시스템이 클래스명을 내보내므로 선택이 아니라 전제다. 배선은 두 줄이면 끝난다:
+
+```css
+@import "tailwindcss";        /* ← 반드시 먼저 */
+@import "@puri/ui/styles.css";
+```
+
+순서가 중요하다 — 토큰이 `@theme` 블록에 들어 있어서 Tailwind 없이 로드하면 **그 블록이 통째로 무시되고 토큰이 전부 사라진다.** 패키지 소스 스캔(`@source`)은 `styles/index.css`가 자기 경로 기준으로 선언하므로 앱이 따로 배선할 것은 없다.
+
+- **토큰은 두 얼굴을 갖는다.** `--radius-lg`는 `var(--radius-lg)`로도 쓰이고 `rounded-lg` 유틸리티로도 나온다. 새 코드는 유틸리티를 쓴다. 간격은 Tailwind 기본 스케일이 이미 4px 배수라 `p-4` = `var(--space-4)` = 16px로 같다.
+- **shadcn 컴포넌트는 `styles/theme.css`의 매핑을 통해 푸리 색을 입는다.** `--background` `--primary` 같은 shadcn 이름이 푸리 토큰의 별칭으로 정의돼 있어서, `npx shadcn add`로 가져온 코드를 고치지 않아도 된다. **이 파일을 지우면 전부 중립 회색이 된다.**
+- **변형은 CVA로 선언한다** — `cva()` + `cn()`. hover/active를 `useState`로 잡지 않는다(그건 변환 전 방식이다).
 - **전 컴포넌트에 `'use client'` 배너**를 둔다. 지금은 무의미하지만 웹을 Next.js(RSC)로 갈 때 전수 수정을 막는다.
 - 앱 전역 스타일(스크롤·선택 방지 같은 **그 앱의** 결정)은 `packages/ui`가 아니라 앱의 `index.css`에 둔다.
+
+> **미검증 — 펜 입력과 Radix.** Radix 오버레이(Dialog/Sheet)가 포인터 이벤트를 잡는 방식과 필기 캔버스(`touchAction: none` + `setPointerCapture`, §6.3)가 겹칠 때의 거동은 **실기기에서 확인된 바 없다.** 현재 Radix를 쓰는 것은 Checkbox 하나뿐이라 아직 문제가 드러날 자리가 없다. 캔버스 위에 오버레이를 올리는 첫 화면에서 반드시 확인한다.
 
 이 두 경계(§3의 `src/lib` 순수성, §3.1의 UI 방향성)가 아키텍처 규칙의 전부다.
 

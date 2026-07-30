@@ -2,7 +2,8 @@
 
 // 푸리 DS — Timer. 누적 시간 측정: mono 판독부 + 일시정지 + ±30초 스텝.
 // 시간은 상대 신호다 — 정밀 조정을 강요하지 않는다. slow는 △ 시간 신호.
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
+import { cn } from '../../lib/utils'
 
 const I = ({ s = 18, children }: { s?: number; children: ReactNode }) => (
   <svg
@@ -47,29 +48,19 @@ function fmt(sec: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-const stepBtn: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 30,
-  height: 22,
-  borderRadius: 'var(--radius-sm)',
-  cursor: 'pointer',
-  background: 'var(--surface-sunken)',
-  border: '1px solid var(--border-subtle)',
-  color: 'var(--text-default)',
-  padding: 0,
-}
+const STEP_BTN =
+  'inline-flex items-center justify-center w-[30px] h-[22px] p-0 rounded-sm cursor-pointer ' +
+  'bg-surface-sunken border border-border-subtle text-default hover:bg-surface-hover'
 
-export type TimerProps = {
+export type TimerProps = Omit<React.HTMLAttributes<HTMLDivElement>, 'onChange'> & {
   label?: string
   seconds?: number
   onChange?: (seconds: number) => void
   running?: boolean
   onToggleRun?: (running: boolean) => void
+  /** "평균보다 오래" 신호 — 테두리와 숫자가 앰버로 바뀐다 */
   slow?: boolean
   step?: number
-  style?: CSSProperties
 }
 
 export function Timer({
@@ -80,82 +71,49 @@ export function Timer({
   onToggleRun,
   slow = false,
   step = 30,
-  style,
+  className,
+  ...rest
 }: TimerProps) {
   const bump = (delta: number) => onChange?.(Math.max(0, seconds + delta))
 
   return (
     <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 14,
-        padding: '10px 12px 10px 16px',
-        background: 'var(--paper)',
-        border: `1px solid ${slow ? 'var(--grade-tri-ring)' : 'var(--border-default)'}`,
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-sm)',
-        ...style,
-      }}
+      className={cn(
+        'inline-flex items-center gap-3.5 py-2.5 pl-4 pr-3 bg-paper rounded-lg shadow-sm border',
+        slow ? 'border-grade-tri-ring' : 'border-border',
+        className,
+      )}
+      {...rest}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span
-          style={{
-            fontSize: 'var(--text-caption)',
-            color: 'var(--text-muted)',
-            letterSpacing: 'var(--track-wide)',
-          }}
-        >
-          {label}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-numeric)',
-              fontVariantNumeric: 'tabular-nums',
-              fontSize: 26,
-              fontWeight: 600,
-              lineHeight: 1,
-              color: slow ? 'var(--grade-tri)' : 'var(--text-strong)',
-            }}
-          >
+      <div className="flex flex-col gap-0.5">
+        <span className="text-caption text-muted-foreground tracking-[var(--track-wide)]">{label}</span>
+        <div className="flex items-baseline gap-2">
+          <span className={cn('num text-[26px] font-semibold leading-none', slow ? 'text-grade-tri' : 'text-strong')}>
             {fmt(seconds)}
           </span>
-          {slow && (
-            <span style={{ fontSize: 'var(--text-caption)', color: 'var(--grade-tri)', fontWeight: 500 }}>
-              평균보다 오래
-            </span>
-          )}
+          {slow && <span className="text-caption font-medium text-grade-tri">평균보다 오래</span>}
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <button onClick={() => bump(step)} aria-label={`+${step}초`} style={stepBtn}>
+      <div className="flex flex-col gap-1">
+        <button type="button" onClick={() => bump(step)} aria-label={`+${step}초`} className={STEP_BTN}>
           <Up />
         </button>
-        <button onClick={() => bump(-step)} aria-label={`-${step}초`} style={stepBtn}>
+        <button type="button" onClick={() => bump(-step)} aria-label={`-${step}초`} className={STEP_BTN}>
           <Down />
         </button>
       </div>
 
       <button
+        type="button"
         onClick={() => onToggleRun?.(!running)}
         aria-label={running ? '일시정지' : '재개'}
         title={running ? '일시정지' : '재개'}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 44,
-          height: 44,
-          minWidth: 44,
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid transparent',
-          cursor: 'pointer',
-          background: running ? 'var(--brand-tint)' : 'var(--brand)',
-          color: running ? 'var(--text-brand)' : 'var(--text-invert)',
-          transition: 'background var(--dur-fast) var(--ease-out)',
-        }}
+        className={cn(
+          'inline-flex items-center justify-center size-11 flex-none rounded-md border border-transparent cursor-pointer',
+          'transition-[background] duration-[var(--dur-fast)] ease-out',
+          running ? 'bg-brand-tint text-brand-ink' : 'bg-brand text-invert hover:bg-brand-hover',
+        )}
       >
         {running ? <Pause /> : <Play />}
       </button>

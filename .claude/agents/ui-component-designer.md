@@ -31,16 +31,16 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 6번에서 뭘 읽을지: 만들 것과 가장 가까운 것을 고른다.
 - 인터랙티브 컨트롤 → `packages/ui/src/components/core/Button.tsx` (변형/사이즈/hover·active 패턴의 기준)
-- 상태 표시 프리미티브 → `packages/ui/src/components/grading/GradeBadge.tsx` (dims 상수, `aria-label`, 다중 단서 패턴)
+- 상태 표시 프리미티브 → `packages/ui/src/components/grading/GradeBadge.tsx` (compoundVariants, `aria-label`, 다중 단서 패턴)
 - 정적 라벨/토큰 → `packages/ui/src/components/core/Chip.tsx` (tone 맵 패턴)
 - 복합 카드/화면 조각 → `packages/ui/src/components/study/WrongNoteCard.tsx`
 
 ### 0-2. 발견한 것을 어떻게 쓰는가
 
 - **값이 이미 있으면 그 값을 쓴다.** 반경 12px이 "더 예뻐 보여도" 시스템이 `--radius-lg` 14px이면 14px이다.
-- **패턴이 이미 있으면 그 패턴을 복사한다.** Button이 `hover`/`active`를 `useState`로 잡으면 새 컴포넌트도 그렇게 한다. 더 나은 방법을 알아도 여기서 도입하지 않는다.
+- **패턴이 이미 있으면 그 패턴을 복사한다.** Button이 변형을 `cva()`로 선언하고 `cn()`으로 합치면 새 컴포넌트도 그렇게 한다. 더 나은 방법을 알아도 여기서 도입하지 않는다.
 - **컴포넌트가 이미 있으면 확장한다.** Chip이 있으면 새 Tag를 만들지 말고 Chip에 tone을 추가한다. Button이 있으면 새 CTA 컴포넌트를 만들지 말고 variant를 추가한다.
-- **없는 값이 꼭 필요하면 토큰을 먼저 추가한다.** 컴포넌트 안에 하드코딩하지 말고 `tokens/*.css`에 추가한 뒤 `var()`로 참조한다. 그리고 **토큰을 추가했다는 사실을 보고한다.**
+- **없는 값이 꼭 필요하면 토큰을 먼저 추가한다.** 컴포넌트 안에 하드코딩하지 말고 `styles/tokens/*.css`에 추가하고, Tailwind 네임스페이스가 아니면 `styles/theme.css`의 `@theme inline`에 등록한 뒤 유틸리티로 참조한다. 그리고 **토큰을 추가했다는 사실을 보고한다.**
 - **시스템에 모순이나 접근성 문제를 발견하면 보고한다. 조용히 고치지 않는다.** (§6-6)
 
 ### 0-3. 우선순위
@@ -75,13 +75,20 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 ## 2. 프로젝트 규약 (어길 수 없음)
 
 - **위치**: 디자인 시스템은 앱이 아니라 **`packages/ui`** 에 산다. 코어 UI는 `packages/ui/src/components/core/`, 채점 도메인은 `.../grading/`, 학습 도메인은 `.../study/`. 특정 화면에서만 쓰는 일회성 UI는 그 앱의 `src/components/`.
-- **스타일 방식**: **인라인 `CSSProperties`**. CSS 모듈도 styled-components도 쓰지 않는다. **`packages/ui`에서는 Tailwind를 쓸 수 없다** — 앱마다 스타일 도구가 다를 수 있고, 패키지가 특정 앱의 도구에 묶이면 다른 앱이 컴포넌트를 못 쓴다 (`docs/ARCHITECTURE.md` §3.1).
+- **스타일 방식**: **Tailwind 클래스 + CVA** (shadcn/ui 규약). 인라인 `style`도, CSS 모듈도, styled-components도 쓰지 않는다.
+  - 변형은 `cva()`로 선언하고, 최종 클래스는 `cn()`(`../../lib/utils`)으로 합친다. 호출부가 `className`으로 덮을 수 있어야 하므로 **`cn(variants(...), className)` 순서를 지킨다**.
+  - `props`에 `VariantProps<typeof xxxVariants>`를 얹어 변형 타입을 자동으로 맞춘다.
+- **없는 프리미티브는 shadcn에서 가져온다.** Dialog·Sheet·Select·Tooltip·Toast 같은 것을 손으로 만들지 않는다 — `npx shadcn@latest add <name>` 후 `@/` 임포트를 상대 경로로 고친다. 색은 `styles/theme.css`의 매핑이 알아서 입힌다.
 - **파일 첫 줄은 `'use client'`**, 그다음 빈 줄, 그다음 한 줄 주석. 웹을 Next.js(RSC)로 갈 때를 위한 것이라 예외 없이 붙인다.
-- **색·간격·폰트는 전부 `var(--token)`**. 하드코딩된 hex/px 색상 금지. 필요한 값이 토큰에 없으면 **토큰을 먼저 추가**하고 쓴다.
-  - 예외: 컴포넌트 고유 기하값(배지 지름 28/40/56px, 아이콘 stroke-width 등)은 컴포넌트 안의 `dims`/`sizes` 상수 객체로 둔다 — Button/GradeBadge가 그렇게 한다.
+- **색·간격·폰트는 토큰 유틸리티로.** 하드코딩된 hex/px 금지.
+  - 색: `bg-brand` `text-strong` `text-muted-foreground` `border-border-subtle` `bg-grade-o-bg` `text-tag-calc` …
+  - 크기: `text-h3` `text-body` `text-caption` / 반경 `rounded-md`(10px) `rounded-lg`(14px) `rounded-pill` / 그림자 `shadow-sm` `shadow-focus`
+  - 간격: Tailwind 기본 스케일이 4px 배수라 `p-4`가 곧 `var(--space-4)`다. `p-[var(--space-4)]`로 쓰지 않는다.
+  - 토큰에 없는 값이 필요하면 **`styles/tokens/*.css`에 먼저 추가**하고, 그게 Tailwind 네임스페이스가 아니면 `styles/theme.css`의 `@theme inline`에 등록한다. 추가했다는 사실을 보고한다.
+  - 예외: 컴포넌트 고유 기하값(배지 지름, 아이콘 stroke-width)은 `size-10` 같은 유틸리티나 `text-[22px]` 같은 arbitrary 값으로 둔다 — GradeBadge가 그렇게 한다.
 - **배너 다음 줄은 한 줄짜리 한국어 주석**: `// 푸리 DS — <이름>. <한 문장 규칙 또는 용도>.`
-- **export**: named export + `export type XxxProps`. default export 금지.
-- **hover/press**: `useState`로 `hover`/`active`를 잡고 스타일 객체를 스프레드로 덮는다(Button 패턴). CSS `:hover`를 쓸 수 없는 인라인 스타일이라 이렇게 한다.
+- **export**: named export + `export type XxxProps`. default export 금지. CVA 객체도 `export { xxxVariants }`로 내보내 화면이 재사용할 수 있게 한다.
+- **hover/press**: CSS 변형 `hover:` `active:` `focus-visible:` `disabled:`로 쓴다. **`useState`로 hover를 잡지 않는다** — 그건 인라인 스타일 시절 방식이고, 지금 코드에 남아 있으면 변환 누락이다.
 - **터치 타겟**: 인터랙티브 요소는 최소 `var(--tap-min)`(44px). 태블릿 + 펜 환경이다.
 - **접근성**: 아이콘 전용 버튼에는 `aria-label`, 의미를 가진 비텍스트 요소에는 `role`/`aria-label`(GradeBadge의 `aria-label="채점 △ — 맞았지만 아쉬움"` 참고).
 - **금지**: 이모지, 그라디언트, 사진 히어로 이미지, 텍스처, confetti/바운스 애니메이션, 카드 왼쪽 컬러 보더(AI-슬롭 클리셰), 하드 블루 포커스 링.
@@ -274,7 +281,7 @@ Pretendard가 이 조건을 만족한다(x-height가 크다). 실무적 의미:
 - [ ] README의 금지 사항(이모지·그라디언트·텍스처·카드 컬러 좌측 보더·confetti)을 어기지 않았다
 
 **원칙 준수 (§3)**
-- [ ] 하드코딩된 색이 없다 — 전부 `var(--…)`
+- [ ] 하드코딩된 색이 없다 — 전부 토큰 유틸리티(`bg-brand` `text-strong` …)
 - [ ] 18px 미만 텍스트 색이 §3의 4.5:1 통과 목록(`--text-strong/-default/--ink-700/--ink-600/--text-brand`)에만 있다
 - [ ] `--text-muted`를 본문 크기 텍스트에 쓰지 않았다
 - [ ] 정보를 나르는 요소 중 **색만으로** 구분되는 것이 없다 (마크·라벨·아이콘 중 하나가 더 있다)

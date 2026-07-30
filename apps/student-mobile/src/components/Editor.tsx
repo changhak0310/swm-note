@@ -6,7 +6,7 @@ import { useInkStore } from '../stores/inkStore'
 import { paths } from '../routes/paths'
 import { useGrade } from '../routes/useGrade'
 import { consecutiveCorrect } from '../lib/grading'
-import { Button, ReviewChecks, Timer } from '@puri/ui'
+import { Button, IconButton, RetryChip, ReviewChecks, Timer } from '@puri/ui'
 import { PenToolbar } from './PenToolbar'
 import { PageStack } from './PageStack'
 import logo from '@puri/ui/assets/logo.svg'
@@ -32,15 +32,11 @@ export function Editor() {
     <div className="flex h-dvh flex-col overflow-hidden bg-[var(--paper)]">
       {/* ---------- 상단 바 ---------- */}
       <header className="flex h-[60px] flex-none items-center border-b border-[var(--border-subtle)] px-[var(--space-4)]">
-        <button
-          aria-label="목록으로"
-          className="grid h-11 w-11 place-items-center rounded-[10px] text-[color:var(--text-default)]"
-          onClick={() => void navigate(paths.list)}
-        >
+        <IconButton label="목록으로" onClick={() => void navigate(paths.list)}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
-        </button>
+        </IconButton>
         <span className="ml-1.5 truncate text-[20px] font-semibold text-[color:var(--text-strong)]">
           {doc.name}
         </span>
@@ -70,15 +66,18 @@ export function Editor() {
           {sheet === 'summary' && <SummarySheet sumO={sumO} sumX={sumX} />}
           {sheet === 'resolve' && <ResolveSheet />}
           {sheet === 'pill' && (
-            <button
-              className="absolute bottom-5 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--text-strong)] px-5 py-[11px] text-[14px] font-semibold text-white shadow-[var(--shadow-lg)]"
+            <Button
+              variant="inverse"
+              className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full shadow-lg"
+              icon={
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m18 15-6-6-6 6" />
+                </svg>
+              }
               onClick={store.expandSheet}
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m18 15-6-6-6 6" />
-              </svg>
               채점 결과 · O <span className="num">{sumO}</span> / 사선 <span className="num">{sumX}</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -146,15 +145,11 @@ function SummarySheet({ sumO, sumX }: { sumO: number; sumX: number }) {
           <StatTile label="O" value={sumO} color="var(--grade-o)" bg="var(--grade-o-bg)" />
           <StatTile label="사선" value={sumX} color="var(--grade-x)" bg="var(--grade-x-bg)" />
         </div>
-        <button
-          aria-label="접기"
-          className="grid h-10 w-10 place-items-center rounded-[10px] bg-[var(--surface-sunken)] text-[color:var(--text-muted)]"
-          onClick={store.collapseSheet}
-        >
+        <IconButton variant="sunken" label="접기" onClick={store.collapseSheet}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m6 9 6 6 6-6" />
           </svg>
-        </button>
+        </IconButton>
       </div>
 
       {wrongItems.length > 0 ? (
@@ -164,30 +159,14 @@ function SummarySheet({ sumO, sumX }: { sumO: number; sumX: number }) {
           </div>
           <div className="flex flex-wrap gap-2.5">
             {wrongItems.map((w) => (
-              <button
+              <RetryChip
                 key={w.regionId}
-                className="inline-flex items-center gap-2 rounded-[12px] border px-4 py-[11px]"
-                style={{
-                  borderColor: w.graduated ? 'var(--green-300)' : 'var(--grade-x-ring)',
-                  background: w.graduated ? 'var(--green-100)' : 'var(--grade-x-bg)',
-                }}
+                label={w.label}
+                page={w.page ?? undefined}
+                consec={w.consec}
+                graduated={w.graduated}
                 onClick={() => void store.startResolve(w.regionId)}
-              >
-                <span className="text-[15px] font-bold text-[color:var(--text-strong)]">{w.label}</span>
-                {w.page && <span className="text-[13px] text-[color:var(--text-muted)]">p{w.page}</span>}
-                <span
-                  className="num text-[12px] font-semibold"
-                  style={{ color: w.graduated ? 'var(--text-brand)' : 'var(--text-muted)' }}
-                >
-                  {w.graduated ? '졸업' : `${w.consec}/3`}
-                </span>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text-brand)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-                  <path d="M21 3v5h-5" />
-                  <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-                  <path d="M3 21v-5h5" />
-                </svg>
-              </button>
+              />
             ))}
           </div>
         </>
@@ -249,15 +228,11 @@ function ResolveSheet() {
     >
       <div className="mx-auto mb-3 h-[5px] w-11 rounded-[3px] bg-[var(--ink-200)]" />
       <div className="mb-3.5 flex items-center gap-3">
-        <button
-          aria-label="채점 결과로"
-          className="grid h-10 w-10 place-items-center rounded-[10px] bg-[var(--surface-sunken)] text-[color:var(--text-default)]"
-          onClick={store.backToSummary}
-        >
+        <IconButton variant="sunken" label="채점 결과로" onClick={store.backToSummary}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
-        </button>
+        </IconButton>
         <div className="flex-1">
           <div className="text-[16px] font-bold text-[color:var(--text-strong)]">
             {found?.region.numLabel ? `${found.region.numLabel}번` : '문항'} 다시풀기
@@ -281,16 +256,18 @@ function ResolveSheet() {
           running={running}
           onToggleRun={setRunning}
         />
-        <button
-          className="inline-flex h-[46px] items-center gap-[7px] rounded-[10px] border border-[var(--border-default)] bg-[var(--paper)] px-4 text-[14px] font-medium text-[color:var(--text-default)]"
+        <Button
+          variant="secondary"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          }
           onClick={store.toggleReveal}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
           {revealed ? '지난 풀이 숨김' : '지난 풀이 보기'}
-        </button>
+        </Button>
         <div className="flex-1" />
         {graduated && (
           <span className="inline-flex items-center gap-[7px] rounded-full bg-[var(--brand-tint)] px-[15px] py-2.5 text-[14px] font-semibold text-[color:var(--text-brand)]">

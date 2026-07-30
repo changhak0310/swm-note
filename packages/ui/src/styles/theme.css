@@ -1,0 +1,131 @@
+/* shadcn/ui 시맨틱 변수 → 푸리 토큰 다리.
+ *
+ * shadcn CLI가 뽑아주는 컴포넌트는 `bg-background` `text-muted-foreground` `border-input`
+ * 처럼 **자기 이름**을 쓴다. 그 이름들을 여기서 푸리 토큰의 별칭으로 정의해두면
+ * shadcn 컴포넌트 코드를 한 줄도 안 고치고 푸리 색이 나온다.
+ *
+ * ★ 이 파일이 없으면 `npx shadcn add`로 가져온 것들이 전부 중립 회색 shadcn 룩이 되고,
+ *   design-system README의 "따뜻한 off-white 캔버스 · 색은 장식이 아니라 진단"이 깨진다.
+ *
+ * 매핑을 고칠 때는 오른쪽(푸리 토큰)만 바꾼다. 왼쪽 이름은 shadcn의 계약이다.
+ */
+:root {
+  --background: var(--canvas);
+  --foreground: var(--text-strong);
+
+  --card: var(--paper);
+  --card-foreground: var(--text-strong);
+  --popover: var(--paper);
+  --popover-foreground: var(--text-strong);
+
+  --primary: var(--brand);
+  --primary-foreground: var(--text-invert);
+  /* shadcn의 secondary는 "차분한 채워진 버튼"이다 — 푸리에선 종이 위 아웃라인이 그 역할 */
+  --secondary: var(--paper);
+  --secondary-foreground: var(--text-strong);
+
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--surface-hover);
+  --accent-foreground: var(--text-strong);
+
+  --destructive: var(--danger);
+  --destructive-hover: var(--danger-hover);
+  --destructive-press: var(--danger-press);
+  --destructive-foreground: var(--text-invert);
+
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--border-focus);
+
+  --radius: var(--radius-md);
+}
+
+/* `inline`이라 유틸리티가 --color-* 를 한 번 더 거치지 않고 오른쪽 변수를 직접 쓴다.
+   덕분에 위 :root 값만 바꿔도 즉시 반영된다(테마 전환 여지). */
+@theme inline {
+  /* ---------- shadcn 시맨틱 ---------- */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-press: var(--destructive-press);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ---------- 푸리 브랜드 ---------- */
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-press: var(--brand-press);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-tint-soft: var(--brand-tint-soft);
+  --color-paper: var(--paper);
+  --color-canvas: var(--canvas);
+
+  /* ---------- 글자색 ----------
+     `--color-body`는 만들지 않는다 — `--text-body`(크기)와 `text-body` 유틸리티가 겹친다.
+     본문색은 `text-default`, 가장 진한 건 `text-foreground`. */
+  --color-strong: var(--text-strong);
+  --color-default: var(--text-default);
+  --color-faint: var(--text-faint);
+  --color-invert: var(--text-invert);
+  --color-brand-ink: var(--text-brand);
+
+  /* ---------- 표면·경계 ---------- */
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-mask: var(--surface-mask);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+
+  /* ---------- 중립 램프 ---------- */
+  --color-ink-50: var(--ink-50);
+  --color-ink-100: var(--ink-100);
+  --color-ink-150: var(--ink-150);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-600: var(--ink-600);
+  --color-ink-700: var(--ink-700);
+  --color-ink-800: var(--ink-800);
+  --color-ink-900: var(--ink-900);
+  --color-ink-950: var(--ink-950);
+
+  /* ---------- 채점 스케일 (O / △ / X) ---------- */
+  --color-grade-o: var(--grade-o);
+  --color-grade-o-bg: var(--grade-o-bg);
+  --color-grade-o-ring: var(--grade-o-ring);
+  --color-grade-tri: var(--grade-tri);
+  --color-grade-tri-bg: var(--grade-tri-bg);
+  --color-grade-tri-ring: var(--grade-tri-ring);
+  --color-grade-x: var(--grade-x);
+  --color-grade-x-bg: var(--grade-x-bg);
+  --color-grade-x-ring: var(--grade-x-ring);
+
+  /* ---------- 오답 원인 5태그 ---------- */
+  --color-tag-concept: var(--tag-concept);
+  --color-tag-concept-bg: var(--tag-concept-bg);
+  --color-tag-calc: var(--tag-calc);
+  --color-tag-calc-bg: var(--tag-calc-bg);
+  --color-tag-condition: var(--tag-condition);
+  --color-tag-condition-bg: var(--tag-condition-bg);
+  --color-tag-approach: var(--tag-approach);
+  --color-tag-approach-bg: var(--tag-approach-bg);
+  --color-tag-time: var(--tag-time);
+  --color-tag-time-bg: var(--tag-time-bg);
+}

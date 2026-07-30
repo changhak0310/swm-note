@@ -1,6 +1,7 @@
 // 시안2 좌측 펜 툴바 — 펜·형광펜·지우개·색 3종·실행취소 + ✦ AI 채점 (주 진입점)
 // 키보드·올가미 등은 1차 범위 밖이라 비활성으로만 보여준다
 import type { ReactNode } from 'react'
+import { IconButton, Toggle } from '@puri/ui'
 import { useDocumentStore } from '../stores/documentStore'
 import { useInkStore } from '../stores/inkStore'
 import { COLOR_HEX, useToolStore, type InkColor, type Tool } from '../stores/toolStore'
@@ -51,22 +52,22 @@ export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
       {/* ✦ AI 채점 — 시안2의 주 진입점 (F-07) */}
       {showGrade && (
         <>
-          <button
-            title={gradable ? 'AI 채점' : '이 PDF는 자동 채점을 지원하지 않습니다'}
-            aria-label="AI 채점"
+          <IconButton
+            variant="solid"
+            label={gradable ? 'AI 채점' : '이 PDF는 자동 채점을 지원하지 않습니다'}
             disabled={!gradable}
             onClick={() => void grade()}
-            className="relative grid h-12 w-12 flex-none cursor-pointer place-items-center rounded-[13px] text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="relative size-12 shadow-sm disabled:opacity-40"
           >
-            <span className="absolute inset-0 rounded-[13px] bg-[var(--brand)] shadow-[var(--shadow-sm)]" />
+            {/* 아직 한 번도 채점 안 했으면 조용히 맥박친다 — 주 진입점이라 눈에 띄어야 한다 */}
             {!graded && gradable && (
               <span
-                className="absolute inset-0 rounded-[13px]"
+                className="absolute inset-0 rounded-md"
                 style={{ animation: 'puriPulse 2.2s var(--ease-out) infinite' }}
               />
             )}
             <SparkIcon />
-          </button>
+          </IconButton>
           <Divider />
         </>
       )}
@@ -75,6 +76,7 @@ export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
         <button
           key={c}
           aria-label={`잉크 색 ${c}`}
+          aria-pressed={color === c}
           onClick={() => {
             setColor(c)
             if (tool === 'eraser') setTool('pen')
@@ -106,6 +108,7 @@ export function PenToolbar({ showGrade = true }: { showGrade?: boolean }) {
   )
 }
 
+/** 툴바 한 칸 — 디자인 시스템 Toggle의 얇은 래퍼. 여기서만 쓰는 이름 맞추기용이다. */
 function ToolButton({
   children,
   label,
@@ -120,17 +123,9 @@ function ToolButton({
   onClick?: () => void
 }) {
   return (
-    <button
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="relative grid h-11 w-11 flex-none cursor-pointer place-items-center rounded-[11px] disabled:cursor-not-allowed"
-      style={{ color: disabled ? 'var(--text-faint)' : 'var(--text-default)' }}
-    >
-      {active && <span className="absolute inset-0 rounded-[11px] bg-[var(--brand-tint)]" />}
-      <span className="relative">{children}</span>
-    </button>
+    <Toggle label={label} pressed={active} disabled={disabled} onClick={onClick}>
+      {children}
+    </Toggle>
   )
 }
 

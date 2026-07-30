@@ -2,80 +2,64 @@
 
 // 푸리 DS — GradeBadge. O/△/X는 아이콘이 아니라 브랜드 프리미티브(링 + 마크)다.
 // O = 완전히 맞음, △ = 맞았지만 아쉬움, X = 해설·원인 필요.
-import type { CSSProperties } from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
 
 export type Grade = 'O' | 'triangle' | 'X'
 export type GradeInput = Grade | 'o' | '△' | 'tri' | 'partial' | 'x'
-type Size = 'sm' | 'md' | 'lg'
 
-const grades: Record<Grade, { mark: string; color: string; bg: string; ring: string; label: string }> = {
-  O: {
-    mark: 'O',
-    color: 'var(--grade-o)',
-    bg: 'var(--grade-o-bg)',
-    ring: 'var(--grade-o-ring)',
-    label: '완전히 맞음',
-  },
-  triangle: {
-    mark: '△',
-    color: 'var(--grade-tri)',
-    bg: 'var(--grade-tri-bg)',
-    ring: 'var(--grade-tri-ring)',
-    label: '맞았지만 아쉬움',
-  },
-  X: {
-    mark: 'X',
-    color: 'var(--grade-x)',
-    bg: 'var(--grade-x-bg)',
-    ring: 'var(--grade-x-ring)',
-    label: '해설·원인 필요',
-  },
+const marks: Record<Grade, { mark: string; label: string }> = {
+  O: { mark: 'O', label: '완전히 맞음' },
+  triangle: { mark: '△', label: '맞았지만 아쉬움' },
+  X: { mark: 'X', label: '해설·원인 필요' },
 }
 
 const alias: Record<string, Grade> = { o: 'O', '△': 'triangle', tri: 'triangle', partial: 'triangle', x: 'X' }
 
-const dims: Record<Size, { d: number; fs: number; bw: number }> = {
-  sm: { d: 28, fs: 15, bw: 2 },
-  md: { d: 40, fs: 22, bw: 2.5 },
-  lg: { d: 56, fs: 30, bw: 3 },
-}
+const badgeVariants = cva('inline-grid place-items-center flex-none rounded-pill font-sans font-bold tracking-normal', {
+  variants: {
+    grade: {
+      O: 'text-grade-o border-grade-o-ring',
+      triangle: 'text-grade-tri border-grade-tri-ring',
+      X: 'text-grade-x border-grade-x-ring',
+    },
+    size: {
+      sm: 'size-7 text-[15px] leading-none border-2',
+      md: 'size-10 text-[22px] leading-none border-[2.5px]',
+      lg: 'size-14 text-[30px] leading-none border-[3px]',
+    },
+    filled: { true: '', false: 'bg-transparent' },
+  },
+  compoundVariants: [
+    { grade: 'O', filled: true, class: 'bg-grade-o-bg' },
+    { grade: 'triangle', filled: true, class: 'bg-grade-tri-bg' },
+    { grade: 'X', filled: true, class: 'bg-grade-x-bg' },
+    // △는 시각 중심이 위라 지름의 4%만큼 내린다
+    { grade: 'triangle', size: 'sm', class: 'pt-[1.12px]' },
+    { grade: 'triangle', size: 'md', class: 'pt-[1.6px]' },
+    { grade: 'triangle', size: 'lg', class: 'pt-[2.24px]' },
+  ],
+  defaultVariants: { size: 'md', filled: false },
+})
 
-export type GradeBadgeProps = {
-  grade?: GradeInput
-  size?: Size
-  filled?: boolean
-  style?: CSSProperties
-}
+export type GradeBadgeProps = Omit<React.HTMLAttributes<HTMLSpanElement>, 'children'> &
+  Omit<VariantProps<typeof badgeVariants>, 'grade'> & {
+    grade?: GradeInput
+  }
 
-export function GradeBadge({ grade = 'O', size = 'md', filled = false, style }: GradeBadgeProps) {
-  const key: Grade = grade in grades ? (grade as Grade) : (alias[grade] ?? 'O')
-  const g = grades[key]
-  const s = dims[size]
+export { badgeVariants }
+
+export function GradeBadge({ grade = 'O', size, filled, className, ...rest }: GradeBadgeProps) {
+  const key: Grade = grade in marks ? (grade as Grade) : (alias[grade] ?? 'O')
+  const g = marks[key]
 
   return (
     <span
       role="img"
       aria-label={`채점 ${g.mark} — ${g.label}`}
       title={g.label}
-      style={{
-        display: 'inline-grid',
-        placeItems: 'center',
-        flex: 'none',
-        width: s.d,
-        height: s.d,
-        borderRadius: 'var(--radius-pill)',
-        background: filled ? g.bg : 'transparent',
-        border: `${s.bw}px solid ${g.ring}`,
-        color: g.color,
-        fontFamily: 'var(--font-sans)',
-        fontWeight: 700,
-        fontSize: s.fs,
-        lineHeight: 1,
-        letterSpacing: 0,
-        // △는 시각 중심이 위라 살짝 내린다
-        paddingTop: key === 'triangle' ? s.d * 0.04 : 0,
-        ...style,
-      }}
+      className={cn(badgeVariants({ grade: key, size, filled }), className)}
+      {...rest}
     >
       {g.mark}
     </span>

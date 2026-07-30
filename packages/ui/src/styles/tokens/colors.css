@@ -76,6 +76,10 @@
   --border-focus:   var(--green-500);
 
   --danger:  var(--grade-x);
+  /* 파괴적 동작의 hover/press. --grade-x보다 어두운 단계가 채점 스케일에 없어서 여기서 만든다
+     (채점의 X와 "삭제 버튼"은 다른 의미이므로 grade 스케일을 늘리지 않는다) */
+  --danger-hover: #C23A3A;
+  --danger-press: #A93131;
   --warning: var(--grade-tri);
   --success: var(--grade-o);
 }

@@ -6,7 +6,18 @@ import type { AnswerEntry, Region } from '../types'
 import { useDocumentStore } from '../stores/documentStore'
 import { paths } from '../routes/paths'
 import { useGrade } from '../routes/useGrade'
-import { Button, Chip } from '@puri/ui'
+import {
+  Button,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+  IconButton,
+  Input,
+  Toggle,
+} from '@puri/ui'
 
 const CHOICE_VALUES = ['1', '2', '3', '4', '5'] as const
 const CIRCLED = ['①', '②', '③', '④', '⑤']
@@ -72,15 +83,14 @@ export function AnswerKeyScreen() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-[var(--surface-page)]">
       <header className="flex h-[60px] flex-none items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--paper)] px-[var(--space-4)]">
-        <button
-          aria-label="필기 화면으로"
-          className="grid h-11 w-11 place-items-center rounded-[10px] text-[color:var(--text-default)]"
+        <IconButton
+          label="필기 화면으로"
           onClick={() => void navigate(paths.doc(doc.id))}
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m15 18-6-6 6-6" />
           </svg>
-        </button>
+        </IconButton>
         <h1 className="text-[20px] font-semibold text-[color:var(--text-strong)]">정답 입력</h1>
         <span className="num ml-2 rounded-full bg-[var(--brand-tint)] px-3 py-1 text-[13px] font-semibold text-[color:var(--text-brand)]">
           {entered} / {choiceCapable.length} 입력됨
@@ -147,18 +157,17 @@ export function AnswerKeyScreen() {
                       {CHOICE_VALUES.map((v, ci) => {
                         const on = entry?.value === v
                         return (
-                          <button
+                          <Toggle
                             key={v}
-                            className="grid h-10 w-10 place-items-center rounded-full text-[15px] transition-colors duration-[120ms]"
-                            style={{
-                              background: on ? 'var(--brand)' : 'var(--paper)',
-                              color: on ? 'var(--text-invert)' : 'var(--text-default)',
-                              border: `1.5px solid ${on ? 'var(--brand)' : 'var(--border-strong)'}`,
-                            }}
+                            variant="solid"
+                            shape="circle"
+                            label={`${region.numLabel ?? ''}번 ${v}번 선지`}
+                            pressed={on}
+                            className="text-body"
                             onClick={() => select(region, v, i)}
                           >
                             {CIRCLED[ci]}
-                          </button>
+                          </Toggle>
                         )
                       })}
                     </div>
@@ -183,29 +192,21 @@ export function AnswerKeyScreen() {
 
       {/* 문제지 내 정답표 — 사용자가 정답표 페이지를 지정한다 (F-05 규칙 2) */}
       {inlinePrompt && (
-        <div
-          className="fixed inset-0 z-40 grid place-items-center p-6"
-          style={{ background: 'rgba(27,31,22,0.32)', backdropFilter: 'blur(3px)' }}
-          onClick={() => setInlinePrompt(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-[var(--radius-xl)] bg-[var(--paper)] p-[var(--space-6)] shadow-[var(--shadow-lg)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-[length:var(--text-h3)] font-semibold text-[color:var(--text-strong)]">
-              문제지에서 정답표 찾기
-            </h2>
-            <p className="mt-1.5 text-[14px] text-[color:var(--text-muted)]">
+        <Dialog open onOpenChange={(o) => !o && setInlinePrompt(false)}>
+          <DialogContent>
+            <DialogTitle>문제지에서 정답표 찾기</DialogTitle>
+            <DialogDescription>
               정답표가 있는 페이지 번호를 알려줘. 쉼표로 여러 페이지를 적을 수 있어.
-            </p>
-            <input
+            </DialogDescription>
+            <Input
               autoFocus
               value={inlinePages}
               onChange={(e) => setInlinePages(e.target.value)}
               placeholder={`예: ${doc.pageCount}`}
-              className="num mt-[var(--space-4)] h-11 w-full rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--paper)] px-3.5 text-[15px] outline-none focus:border-[var(--border-focus)] focus:shadow-[var(--shadow-focus)]"
+              className="num"
+              containerClassName="mt-4"
             />
-            <div className="mt-[var(--space-5)] flex justify-end gap-[var(--space-2)]">
+            <DialogFooter>
               <Button variant="ghost" onClick={() => setInlinePrompt(false)}>
                 취소
               </Button>
@@ -221,9 +222,9 @@ export function AnswerKeyScreen() {
               >
                 찾기
               </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

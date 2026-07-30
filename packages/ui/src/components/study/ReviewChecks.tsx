@@ -2,64 +2,71 @@
 
 // 푸리 DS — ReviewChecks. 회독 체크 □1□2□3.
 // 3회 연속 정답이면 아카이브로 졸업, 한 번 틀리면 리셋.
-import type { CSSProperties } from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { cn } from '../../lib/utils'
 
-type Size = 'sm' | 'md' | 'lg'
+const boxVariants = cva(
+  'grid place-items-center p-0 rounded-sm border-[1.5px] num font-semibold ' +
+    'transition-[background,color] duration-[var(--dur-fast)] ease-out ' +
+    'disabled:cursor-default not-disabled:cursor-pointer',
+  {
+    variants: {
+      size: {
+        // 글자 크기는 지름의 42%, 체크 아이콘은 50% (원본 비율 유지)
+        sm: 'size-6 text-[10.08px]',
+        md: 'size-7 text-[11.76px]',
+        lg: 'size-[34px] text-[14.28px]',
+      },
+      done: {
+        true: 'bg-brand text-invert border-brand',
+        false: 'bg-paper text-faint border-border-strong',
+      },
+    },
+    defaultVariants: { size: 'md', done: false },
+  },
+)
 
-export type ReviewChecksProps = {
-  count?: number
-  total?: number
-  size?: Size
-  graduated?: boolean
-  onToggle?: (round: number) => void
-  style?: CSSProperties
-}
+const CHECK_SIZE = { sm: 12, md: 14, lg: 17 } as const
+
+export type ReviewChecksProps = Omit<React.HTMLAttributes<HTMLDivElement>, 'onToggle'> &
+  Pick<VariantProps<typeof boxVariants>, 'size'> & {
+    /** 완료한 회독 수 */
+    count?: number
+    total?: number
+    /** 졸업 pill을 붙인다 */
+    graduated?: boolean
+    onToggle?: (round: number) => void
+  }
 
 export function ReviewChecks({
   count = 0,
   total = 3,
-  size = 'md',
+  size,
   graduated = false,
   onToggle,
-  style,
+  className,
+  ...rest
 }: ReviewChecksProps) {
-  const d = size === 'sm' ? 24 : size === 'lg' ? 34 : 28
+  const check = CHECK_SIZE[size ?? 'md']
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, ...style }}>
+    <div className={cn('inline-flex items-center gap-2', className)} {...rest}>
       {Array.from({ length: total }).map((_, i) => {
         const done = i < count
         return (
           <button
             key={i}
+            type="button"
             onClick={onToggle ? () => onToggle(i + 1) : undefined}
             aria-label={`${i + 1}회독${done ? ' 완료' : ''}`}
             title={`${i + 1}회독`}
             disabled={!onToggle}
-            style={{
-              width: d,
-              height: d,
-              minWidth: d,
-              borderRadius: 'var(--radius-sm)',
-              display: 'grid',
-              placeItems: 'center',
-              padding: 0,
-              fontFamily: 'var(--font-numeric)',
-              fontVariantNumeric: 'tabular-nums',
-              fontSize: d * 0.42,
-              fontWeight: 600,
-              background: done ? 'var(--brand)' : 'var(--paper)',
-              color: done ? 'var(--text-invert)' : 'var(--text-faint)',
-              border: `1.5px solid ${done ? 'var(--brand)' : 'var(--border-strong)'}`,
-              cursor: onToggle ? 'pointer' : 'default',
-              transition:
-                'background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)',
-            }}
+            className={boxVariants({ size, done })}
           >
             {done ? (
               <svg
-                width={d * 0.5}
-                height={d * 0.5}
+                width={check}
+                height={check}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -76,17 +83,7 @@ export function ReviewChecks({
         )
       })}
       {graduated && (
-        <span
-          style={{
-            marginLeft: 4,
-            fontSize: 'var(--text-caption)',
-            fontWeight: 600,
-            color: 'var(--text-brand)',
-            background: 'var(--brand-tint)',
-            padding: '3px 9px',
-            borderRadius: 'var(--radius-pill)',
-          }}
-        >
+        <span className="ml-1 px-[9px] py-[3px] rounded-pill text-caption font-semibold text-brand-ink bg-brand-tint">
           졸업 · 아카이브
         </span>
       )}

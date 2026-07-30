@@ -1,0 +1,8 @@
+/* 플레이그라운드 스타일 진입점.
+   Tailwind가 먼저 와야 한다 — 디자인 시스템 토큰이 `@theme` 블록에 들어있어서,
+   Tailwind 없이 로드하면 그 블록이 통째로 무시되고 토큰이 사라진다. */
+@import "tailwindcss";
+@import "../src/styles/index.css";
+
+/* 갤러리 자체가 쓰는 클래스도 스캔 대상에 넣는다 (컴포넌트 쪽은 DS가 자기 @source로 챙긴다) */
+@source ".";

@@ -2,19 +2,25 @@
 
 // 푸리 DS — ConceptHub. 약점개념 허브: 단원별 그룹, 틀린 횟수 내림차순,
 // 허브 전체 최다 약점 하나를 최다로 강조. 점수가 아니라 "몰린 곳"을 보여준다.
-import type { CSSProperties } from 'react'
+import { cn } from '../../lib/utils'
 
 export type HubConcept = { name: string; count: number }
 export type HubUnit = { name: string; concepts: HubConcept[] }
 
-export type ConceptHubProps = {
+export type ConceptHubProps = React.HTMLAttributes<HTMLDivElement> & {
   title?: string
   units?: HubUnit[]
+  /** 점으로 표시하는 최대 개수 — 넘으면 숫자만 늘어난다 */
   maxDots?: number
-  style?: CSSProperties
 }
 
-export function ConceptHub({ title = '약점개념 허브', units = [], maxDots = 8, style }: ConceptHubProps) {
+export function ConceptHub({
+  title = '약점개념 허브',
+  units = [],
+  maxDots = 8,
+  className,
+  ...rest
+}: ConceptHubProps) {
   let top: HubConcept | null = null
   for (const u of units) {
     for (const c of u.concepts) {
@@ -24,36 +30,20 @@ export function ConceptHub({ title = '약점개념 허브', units = [], maxDots 
 
   return (
     <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-        width: 360,
-        background: 'var(--surface-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: 20,
-        ...style,
-      }}
+      className={cn(
+        'flex flex-col gap-[18px] w-90 p-5 bg-card border border-border-subtle rounded-lg shadow-sm',
+        className,
+      )}
+      {...rest}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-        <span style={{ fontSize: 'var(--text-h3)', fontWeight: 600, color: 'var(--text-strong)' }}>
-          {title}
-        </span>
-        <span style={{ fontSize: 'var(--text-caption)', color: 'var(--text-faint)' }}>카운트 높은 순</span>
+      <div className="flex items-baseline justify-between gap-2.5">
+        <span className="text-h3 font-semibold text-strong">{title}</span>
+        <span className="text-caption text-faint">카운트 높은 순</span>
       </div>
 
       {units.map((u) => (
-        <div key={u.name} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span
-            style={{
-              fontSize: 'var(--text-caption)',
-              fontWeight: 600,
-              letterSpacing: 'var(--track-wide)',
-              color: 'var(--text-muted)',
-            }}
-          >
+        <div key={u.name} className="flex flex-col gap-2.5">
+          <span className="text-caption font-semibold tracking-[var(--track-wide)] text-muted-foreground">
             {u.name}
           </span>
           {[...u.concepts]
@@ -61,59 +51,28 @@ export function ConceptHub({ title = '약점개념 허브', units = [], maxDots 
             .map((c) => {
               const isTop = top !== null && c === top
               return (
-                <div key={c.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div key={c.name} className="flex items-center gap-3">
                   <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: 'var(--text-body)',
-                      color: isTop ? 'var(--text-strong)' : 'var(--text-default)',
-                      fontWeight: isTop ? 600 : 400,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
+                    className={cn(
+                      'flex-1 min-w-0 text-body whitespace-nowrap overflow-hidden text-ellipsis',
+                      isTop ? 'text-strong font-semibold' : 'text-default',
+                    )}
                   >
                     {c.name}
                   </span>
-                  <span style={{ display: 'inline-flex', gap: 3, flex: 'none' }}>
+                  <span className="inline-flex gap-[3px] flex-none">
                     {Array.from({ length: Math.min(maxDots, c.count) }).map((_, i) => (
                       <span
                         key={i}
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: 'var(--radius-pill)',
-                          background: isTop ? 'var(--grade-x)' : 'var(--brand)',
-                        }}
+                        className={cn('size-1.5 rounded-pill', isTop ? 'bg-grade-x' : 'bg-brand')}
                       />
                     ))}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-numeric)',
-                      fontVariantNumeric: 'tabular-nums',
-                      fontSize: 'var(--text-sm)',
-                      color: 'var(--text-muted)',
-                      width: 30,
-                      textAlign: 'right',
-                      flex: 'none',
-                    }}
-                  >
+                  <span className="num text-sm text-muted-foreground w-[30px] text-right flex-none">
                     {c.count}회
                   </span>
                   {isTop && (
-                    <span
-                      style={{
-                        fontSize: 'var(--text-caption)',
-                        fontWeight: 600,
-                        color: 'var(--grade-x)',
-                        background: 'var(--grade-x-bg)',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-pill)',
-                        flex: 'none',
-                      }}
-                    >
+                    <span className="px-2 py-0.5 rounded-pill text-caption font-semibold text-grade-x bg-grade-x-bg flex-none">
                       최다
                     </span>
                   )}
