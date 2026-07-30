@@ -2,7 +2,7 @@
 //
 //   PURI_BENCH_PDF=~/Downloads/hi_math.pdf npx vitest run scanonly
 //
-// 앱(liveStore, SCAN_ONLY=true)과 같은 경로를 돈다: 페이지를 1700px로 렌더 →
+// 앱(documentStore, SCAN_ONLY=true)과 같은 경로를 돈다: 페이지를 1700px로 렌더 →
 // detectScan → scanRegions. 텍스트 경로 결과와 나란히 찍어 무엇을 잃고 얻는지 본다.
 //
 // Node에는 캔버스가 없어 @napi-rs/canvas로 pdf.js를 렌더한다. 앱의 renderPageBitmap과

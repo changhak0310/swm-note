@@ -29,7 +29,7 @@ export type ScanRegionResult = {
   synthesizedHeadings: number
   /**
    * regionId → 선지 마커 링의 래스터 픽셀 bbox (라벨 순).
-   * 선지 라벨 OCR 교정(liveStore)이 링 크롭을 자르는 데 쓴다 — 선지 hitbox는
+   * 선지 라벨 OCR 교정(documentStore)이 링 크롭을 자르는 데 쓴다 — 선지 hitbox는
    * 답 텍스트까지 품는 띠라 OCR 입력으로는 못 쓴다.
    */
   markerRects: Record<string, { x0: number; y0: number; x1: number; y1: number }[]>

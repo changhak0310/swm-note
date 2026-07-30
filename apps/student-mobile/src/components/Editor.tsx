@@ -1,4 +1,7 @@
 // 필기 화면 (시안2 에디터) — 상단 바 + 펜 툴바 + 페이지 스택 + 채점 시트
+//
+// 문항은 펜이 닿은 쪽을 그때 분석해서 나온다 (documentStore 「분석」). 그래서 이 화면은
+// 채점 전에도 "무엇을 골랐나"를 배지로 띄운다 (MarkOverlay).
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { findRegion, latestPerRegion, useDocumentStore } from '../stores/documentStore'
@@ -16,6 +19,7 @@ export function Editor() {
   const attemptsAll = useDocumentStore((s) => s.attemptsAll)
   const sheet = useDocumentStore((s) => s.sheet)
   const grading = useDocumentStore((s) => s.grading)
+  const sweep = useDocumentStore((s) => s.sweep)
   const store = useDocumentStore.getState()
   const navigate = useNavigate()
 
@@ -45,16 +49,13 @@ export function Editor() {
             채점 완료 · O <span className="num">{sumO}</span> / 사선 <span className="num">{sumX}</span>
           </span>
         )}
+        <AnalysisSummary />
         <div className="flex-1" />
         <div className="flex items-center gap-[var(--space-2)]">
+          {import.meta.env.DEV && <AnalysisTools />}
           <Button variant="secondary" size="sm" onClick={() => void navigate(paths.answers(doc.id))}>
             정답 입력
           </Button>
-          {import.meta.env.DEV && (
-            <Button variant="ghost" size="sm" onClick={store.toggleZoneDebug}>
-              구역
-            </Button>
-          )}
         </div>
       </header>
 
@@ -93,13 +94,90 @@ export function Editor() {
             <div className="text-center">
               <div className="text-[19px] font-bold text-[color:var(--text-strong)]">채점하는 중</div>
               <div className="mt-1 text-[14px] text-[color:var(--text-muted)]">
-                답 표시를 읽고 있어요 · 문제 옆에 O / 사선으로 표시
+                {/* 펜이 닿지 않은 쪽은 아직 문항을 모른다 — 채점 전에 남은 쪽을 훑는다 */}
+                {sweep
+                  ? `문항을 찾고 있어요 · ${sweep.done}/${sweep.total}쪽`
+                  : '답 표시를 읽고 있어요 · 문제 옆에 O / 사선으로 표시'}
               </div>
             </div>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+// ============================================================ 분석 표시
+
+/** 채점 전에도 보이는 요약 — 지금까지 찾은 문항과 학생이 체크한 수 */
+function AnalysisSummary() {
+  const regions = useDocumentStore((s) => s.regionsByPage)
+  const marksByPage = useDocumentStore((s) => s.marksByPage)
+
+  const problems = Object.values(regions).reduce((n, r) => n + r.length, 0)
+  if (problems === 0) return null
+  const checked = Object.values(marksByPage).reduce((n, m) => n + Object.keys(m).length, 0)
+
+  return (
+    <span className="ml-3 inline-flex flex-none items-center gap-1.5 rounded-full bg-[var(--surface-sunken)] px-3 py-[5px] text-[13px] font-medium text-[color:var(--text-muted)]">
+      문항 <span className="num">{problems}</span> · 체크 <span className="num">{checked}</span>
+    </span>
+  )
+}
+
+/**
+ * 분석 확인용 도구 (DEV 전용).
+ *
+ * 라벨 팩은 사람이 확인한 골든셋 JSON이다 — 라벨된 쪽은 검출 대신 그것을 쓴다 (§11.2).
+ */
+function AnalysisTools() {
+  const visiblePage = useDocumentStore((s) => s.visiblePage)
+  const running = useDocumentStore((s) => s.analysis[s.visiblePage]?.status === 'running')
+  const mode = useDocumentStore((s) => s.mode)
+  const pack = useDocumentStore((s) => s.pack)
+  const store = useDocumentStore.getState()
+
+  return (
+    <>
+      <span className="text-[12px] text-[color:var(--text-faint)]">{mode}</span>
+      <Button variant="ghost" size="sm" onClick={store.toggleZoneDebug}>
+        구역
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={running}
+        onClick={() => void store.reanalyzePage(visiblePage)}
+      >
+        {visiblePage}쪽 다시 분석
+      </Button>
+      <label className="cursor-pointer" title="사람이 확인한 골든셋 JSON — 라벨된 쪽은 검출 대신 그것을 쓴다">
+        <input
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.currentTarget.files?.[0]
+            e.currentTarget.value = ''
+            if (f) void store.importLabelPack(f)
+          }}
+        />
+        <span
+          className="inline-flex h-8 items-center rounded-[8px] px-3 text-[13px] font-medium"
+          style={
+            pack
+              ? { background: 'var(--grade-o-bg)', color: 'var(--grade-o)' }
+              : { border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }
+          }
+        >
+          {pack
+            ? `라벨 팩 ${pack.pages}쪽${pack.via === 'fingerprint' ? ' · 지문' : ''}${
+                pack.offset ? ` ${pack.offset > 0 ? '+' : ''}${pack.offset}` : ''
+              }`
+            : '라벨 팩'}
+        </span>
+      </label>
+    </>
   )
 }
 

@@ -14,7 +14,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { NoteList } from '../components/NoteList'
 import { Editor } from '../components/Editor'
 import { AnswerKeyScreen } from '../components/AnswerKeyScreen'
-import { LiveNote } from '../components/LiveNote'
 import { RootLayout } from './RootLayout'
 import { documentLoader } from './documentRoute'
 import { devRoutes } from './dev'
@@ -37,9 +36,6 @@ export const router = createBrowserRouter([
           { path: 'answers', element: <AnswerKeyScreen /> },
         ],
       },
-
-      // 라이브 노트 — 문서 레코드 없이 도는 별도 화면 (liveStore가 상태를 갖는다)
-      { path: 'live', element: <LiveNote /> },
 
       ...devRoutes,
 

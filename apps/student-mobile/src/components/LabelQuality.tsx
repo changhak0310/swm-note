@@ -666,7 +666,7 @@ const pct = (v: number) => `${(v * 100).toFixed(2)}%`
 // 답한다** — 배치 검증(§11.4)은 표본 여섯 칸의 잉크만 보는 약한 검사라, 최종 확인은
 // 인쇄물 위에 겹쳐 보는 것이다. 그래서 이 칸에는 쪽별 판정표와 오버레이가 함께 있다.
 
-/** 앱의 렌더 폭 (stores/liveStore.ts) — 여기서도 같은 픽셀을 봐야 판정이 같다 */
+/** 앱의 렌더 폭 (stores/documentStore.ts) — 여기서도 같은 픽셀을 봐야 판정이 같다 */
 const SCAN_WIDTH = 1700
 const VECTOR_SCAN_WIDTH = 2800
 const VIEW_W = 640
@@ -700,7 +700,7 @@ function PackPanel() {
     setPage(null)
     try {
       const bytes = await file.arrayBuffer()
-      // ★ 해시를 먼저 — pdf.js가 버퍼 소유권을 가져간다 (liveStore와 같은 순서)
+      // ★ 해시를 먼저 — pdf.js가 버퍼 소유권을 가져간다 (documentStore와 같은 순서)
       const hash = await sha256Short(bytes)
       const doc = await loadPdf(bytes)
       setPdf(doc)
@@ -1029,7 +1029,7 @@ function Guide() {
       <p className="mt-[var(--space-3)] rounded-[8px] bg-[var(--ink-50)] px-[var(--space-3)] py-[var(--space-2)] text-[12px] text-[color:var(--text-muted)]">
         <b>전체 흐름</b> — ① 답지 대조로 라벨할 쪽을 고른다 → <code>/dev/golden</code>에서
         시드 20~25쪽을 <b>「초안 자동」을 끄고</b> 라벨한다(차수 A) → 같은 쪽을 차수 B로 다시
-        라벨한다 → ②로 규약을 굳힌다 → ③을 켜고 규모를 늘린다 → ④로 확인하고 라이브 노트
+        라벨한다 → ②로 규약을 굳힌다 → ③을 켜고 규모를 늘린다 → ④로 확인하고 에디터
         헤더의 「라벨 팩」으로 넣는다.
         <br />
         라벨은 브라우저에 <b>차수별로</b> 저장되므로(<code>{'{파일명}#{차수}'}</code>) ②③④에서

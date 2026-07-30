@@ -10,13 +10,17 @@ export type Document = {
   name: string
   problemPdfPath: string          // Filesystem 경로
   answerPdfPath?: string
+  /**
+   * 원본 PDF의 내용 해시 — 라벨 팩의 신원 확인 열쇠다 (§11.3 L0).
+   * 이 필드가 생기기 전에 올린 문서에는 없다.
+   */
+  contentHash?: string
   pageCount: number
-  regionCount?: number            // 분할된 문항 총수 (F-01 표시용, 업로드 시 계산)
+  regionCount?: number            // 지금까지 분석한 쪽의 문항 총수 (F-01 표시용)
   thumbnail: string               // dataURL, 1페이지 렌더
   createdAt: number
   lastOpenedAt: number
   lastPage: number                // 재진입 시 복원
-  gradable: boolean               // 텍스트 레이어 유무
   deletedAt?: number              // 휴지통 (soft delete). 없으면 정상 노트
 }
 

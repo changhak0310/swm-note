@@ -1,6 +1,6 @@
 // 세로 연속 스크롤 셸 (§6.1, F-04) — 페이지 레이아웃·윈도잉·손가락 스크롤·핀치 확대.
-// 페이지 위에 무엇을 올릴지는 renderPage가 정한다. 에디터(PageStack)와
-// 라이브 노트(LiveNote)가 이 셸을 공유한다.
+// 페이지 위에 무엇을 올릴지는 renderPage가 정한다 — 에디터(PageStack)와 dev 화면들이
+// 이 셸을 공유한다.
 //
 // 펜=필기, 손=스크롤·확대. 모드 전환 UI는 없다.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'

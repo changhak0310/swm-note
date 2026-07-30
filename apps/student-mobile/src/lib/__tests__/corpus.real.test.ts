@@ -29,7 +29,7 @@ import { APP_SCAN_WIDTH, pageRaster } from './scanRaster'
 import type { Raster } from '../scan/components'
 import type { Region } from '../../types'
 
-/** 앱의 렌더 폭 (stores/liveStore.ts). 벡터는 더 크게 그려야 선지 링이 살아난다 */
+/** 앱의 렌더 폭 (stores/documentStore.ts). 벡터는 더 크게 그려야 선지 링이 살아난다 */
 const SCAN_WIDTH = APP_SCAN_WIDTH
 const VECTOR_SCAN_WIDTH = 2800
 

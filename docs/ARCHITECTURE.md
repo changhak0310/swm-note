@@ -198,7 +198,7 @@ type Document = {
   createdAt: number
   lastOpenedAt: number
   lastPage: number                // 재진입 시 복원
-  gradable: boolean               // 텍스트 레이어 유무
+  contentHash?: string            // 원본 PDF 내용 해시 — 라벨 팩 신원 확인 (§11.3 L0)
 }
 
 // ---------- 구역 ----------
@@ -485,7 +485,7 @@ const PATTERNS = [
 | PDF 원본 | Filesystem `documents/{docId}.pdf` | 업로드 시 1회 |
 | 썸네일 | `documents` 레코드에 dataURL | 업로드 시 1회 |
 | 스트로크 | IndexedDB `ink` | `pointerup` + 1초 디바운스 |
-| 분할 결과 | IndexedDB `segments` | 업로드 시 1회, 버전 불일치 시 재계산 |
+| 분할 결과 | IndexedDB `segments` | 펜이 닿은 쪽을 분석한 직후 (버전 불일치 시 다시 분석) |
 | 정답 | IndexedDB `answerKeys` | 입력 즉시 |
 | 채점 결과 | IndexedDB `attempts` | 채점 시 |
 
@@ -504,7 +504,7 @@ PDF를 IndexedDB에 Blob으로 넣지 않는다. 용량이 커서 Filesystem이 
 | 항목 | 기준 | 대응 |
 |---|---|---|
 | PDF 로드 | 20페이지 3초 | 페이지 지연 렌더 |
-| 구역 분할 | 페이지당 200ms | 업로드 시 1회 후 캐시 |
+| 구역 분할 | 페이지당 200ms | 펜이 닿은 쪽만 분석하고 캐시 (스캔 경로 검출 ~30ms + 렌더) |
 | 필기 프레임 | 5000획에서 60fps | 확정/활성 레이어 분리 |
 | 메모리 | 보이는 페이지 ±1만 유지 | 나머지 캔버스 해제 |
 | 채점 | 20문항 1초 | 순수 기하 연산 |
