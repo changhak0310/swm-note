@@ -1,10 +1,13 @@
 # 푸리 (Puri)
 
-Android 태블릿에서 문제집 PDF에 펜 필기하고, 객관식을 기하 판정으로 자동 채점하는 로컬 전용 앱.
-**서버 없음 · 외부 통신 없음 · AI 호출 없음.**
+대한민국 고1~3 수능 수학 학습자를 위한 앱. Android 태블릿에서 문제집 PDF에 펜으로 풀면
+객관식을 기하 판정으로 자동 채점하고, 오답은 원인을 짚어 오답노트로 관리한다.
+
+**학생 데이터는 기기에만 저장된다 · AI 기능은 네트워크 연결을 요구한다 · 이미 분석된 문항의 채점은 오프라인에서 동작한다.**
 
 | 문서 | 내용 |
 |---|---|
+| [`.specify/memory/constitution.md`](.specify/memory/constitution.md) | **프로젝트 헌법** — 원칙 4개. 다른 모든 문서에 우선한다 |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 전 기능 공통 계약 — 데이터 모델·좌표계·필기 파이프라인·성능 예산 |
 | [`docs/research/객관식_인식.md`](docs/research/객관식_인식.md) | 객관식 인식·마킹 판정 규칙과 실측 근거 |
 | [`docs/screens/INDEX.md`](docs/screens/INDEX.md) | 전체 화면 플로우 |
