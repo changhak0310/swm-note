@@ -40,7 +40,7 @@ pnpm + turbo 모노레포. 앱은 `apps/student-mobile/`, 신규 프록시는 `a
 ### 화면 문서 (E 번호 배치 — 구현 전 선행)
 
 - [ ] T005 [P] `docs/screens/S-110-transfer-consent.md` 신설 — 전송 항목 열거, 4상태, `(SDD-001 E9)` 배치
-- [ ] T006 [P] `docs/screens/S-111-analysis-progress.md` 신설 — 4상태, `(SDD-001 E2)` `(SDD-001 E3)` `(SDD-001 E6)` 배치
+- [ ] T006 [P] `docs/screens/S-111-analysis-progress.md` 신설 — 4상태, `(SDD-001 E2)` `(SDD-001 E3)` `(SDD-001 E6)` 배치. 진행은 **단계 수로 표기하고 percent-done 진행바를 쓰지 않는다** (plan.md 화면 절)
 - [ ] T007 [P] `docs/screens/INDEX.md`에 S-110·S-111 행 추가 (진입·이탈·관련 기능 열 채움)
 - [ ] T008 기존 S-102·S-104 화면 문서에 `(SDD-001 E1)` `(SDD-001 E4)` `(SDD-001 E5)` `(SDD-001 E8)` 배치 후 `sh docs/check-errors.sh` 통과 확인
 
@@ -96,8 +96,8 @@ pnpm + turbo 모노레포. 앱은 `apps/student-mobile/`, 신규 프록시는 `a
 - [ ] T034 [US1] `apps/student-mobile/src/stores/documentStore.ts`에 정답지 등록 시 전 페이지 분석 흐름 추가 → `AnswerEntry{source:'answerPdf'}` 저장 (R1, FR-011). **`lib/answerKey.ts` 호출 제거**
 - [ ] T035 [US1] `apps/student-mobile/src/stores/inkStore.ts`에 **페이지 첫 스트로크 커밋 시** 분석 트리거 추가 (R1). 이미 분석된 페이지는 재전송하지 않는다 (R3)
 - [ ] T036 [US1] `apps/student-mobile/src/lib/ai/analysisStore.ts`에 `AnalysisStorePort` 구현 — `PageAnalysis` 읽기/쓰기, `status` 전이 (data-model.md 상태 전이)
-- [ ] T037 [US1] `apps/student-mobile/src/components/AnalysisProgress.tsx`(S-111) 구현 — 페이지별 진행, 4상태
-- [ ] T038 [US1] `apps/student-mobile/src/components/PageScroller.tsx`에 오프라인 대기 배지 추가 (E1) — "연결되면 분석합니다". **필기는 계속 가능해야 한다** (R11)
+- [ ] T037 [US1] `apps/student-mobile/src/components/AnalysisProgress.tsx`(S-111) 구현 — 페이지별 진행, 4상태. **percent-done 진행바를 쓰지 않는다** — 단계 수로 표기한다 (plan.md 화면 절)
+- [ ] T038 [US1] `apps/student-mobile/src/components/PageScroller.tsx`에 오프라인 대기 배지 추가 (E1) — "연결되면 분석합니다". **필기는 계속 가능해야 한다** (R11). 배지는 **중립색**을 쓴다 — 앰버·레드는 O/△/X에 예약돼 있어 대기가 판정으로 오독된다 (plan.md 화면 절)
 - [ ] T039 [US1] `apps/student-mobile/src/lib/ai/queue.ts`를 온라인 복귀 이벤트에 연결 — 대기분 자동 재개 (E1)
 
 **Checkpoint**: quickstart V-1 ~ V-5 통과. **여기까지가 MVP다**
@@ -142,7 +142,7 @@ pnpm + turbo 모노레포. 앱은 `apps/student-mobile/`, 신규 프록시는 `a
 ### Implementation for User Story 3
 
 - [ ] T046 [P] [US3] `apps/student-mobile/src/lib/ai/analysisStore.ts`에 `confidences` 저장 추가 (data-model.md)
-- [ ] T047 [US3] `apps/student-mobile/src/components/GradeOverlay.tsx`에 확신도 표시 추가 — **의견으로 표시하고 판정을 바꾸지 않는다** (헌법 원칙 II)
+- [ ] T047 [US3] `apps/student-mobile/src/components/GradeOverlay.tsx`에 확신도 표시 추가 — **의견으로 표시하고 판정을 바꾸지 않는다** (헌법 원칙 II). 숫자만 두지 말고 **해당 문항의 영역을 함께 보여** 학생이 눈으로 확인하게 한다 (R7) — 근거 없는 확신도는 확인 비용을 올려 학생이 그냥 넘기게 만든다
 - [ ] T048 [US3] `apps/student-mobile/src/components/RegionEditor.tsx` 구현 — 문항 번호·영역·선지 수정. `documentStore.ts:1105`의 기존 patch 경로(`putSegments({regions: patched})`)를 재사용한다
 - [ ] T049 [US3] `apps/student-mobile/src/components/AnswerKeyScreen.tsx`에 분석 실패 페이지의 직접 입력 진입점 추가 (E4·E5)
 - [ ] T050 [US3] `apps/student-mobile/src/components/GradeOverlay.tsx`에 「대기」와 「미판정」을 **다른 표시로** 구분 — 대기는 저절로 풀리고 미판정은 학생 확인이 필요하다 (data-model.md 상태 전이)
@@ -158,7 +158,7 @@ pnpm + turbo 모노레포. 앱은 `apps/student-mobile/`, 신규 프록시는 `a
 - [ ] T053 골든 5권으로 `specs/001-ai-pdf-analysis/quickstart.md` V-7 실행 — SC-001·SC-002·SC-003·**SC-004(오채점 0건)** 측정 후 같은 파일의 V-7 표에 결과 기록
 - [ ] T054 `specs/001-ai-pdf-analysis/quickstart.md` V-8 측정 실행 — `messages.countTokens`로 해상도별·effort별 토큰과 캐시 적중률을 재고 같은 파일 V-8 표에 기록. **`tiktoken` 류를 쓰지 않는다**
 - [ ] T055 T054 결과로 `specs/001-ai-pdf-analysis/plan.md`의 Unresolved 갱신 — 렌더 해상도·effort·페이지당 비용 상한 확정, 그다음 **R12(재시도 정책)** 확정
-- [ ] T056 T054의 확신도↔오류 상관 측정으로 저신뢰 컷오프를 확정하고 `specs/001-ai-pdf-analysis/plan.md`의 R7·Unresolved 갱신. **상관이 낮으면 `spec.md` FR-004를 결정론적 검사(번호 수열)로 갈아탄다**
+- [ ] T056 저신뢰 컷오프를 **두 축으로** 확정하고 `specs/001-ai-pdf-analysis/plan.md`의 R7·Unresolved 갱신 — (a) T054의 확신도↔오류 상관, (b) **그 컷오프에서 페이지당 미판정이 몇 개 나오는가.** (b)가 학생이 감당할 양을 넘으면 상관이 완벽해도 제품이 안 된다 (spec Open Questions · research.md D-11). **상관이 낮으면 `spec.md` FR-004를 결정론적 검사(번호 수열)로 갈아탄다**
 - [ ] T057 필기 전/후 같은 페이지 재현율 A/B 측정 후 `specs/001-ai-pdf-analysis/plan.md` Unresolved에 기록 — 나쁘면 `spec.md` FR-012 재검토 사유로 남긴다
 - [ ] T058 `sh docs/check-errors.sh` 최종 통과 확인
 - [ ] T059 `specs/001-ai-pdf-analysis/quickstart.md` 전체 절차 실행 및 완료 조건 체크
