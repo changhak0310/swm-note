@@ -1,4 +1,4 @@
-package com.puri.student;
+package com.qed.note;
 
 import com.getcapacitor.BridgeActivity;
 

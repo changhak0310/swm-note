@@ -133,6 +133,24 @@ npx cap sync
 npx cap open android
 ```
 
+## iOS
+
+Xcode + CocoaPods가 필요하다. `cap sync`가 `pod install`까지 돌린다.
+
+```sh
+pnpm build
+cd apps/student-mobile
+npx cap add ios        # 최초 1회 — ios/ 생성
+npx cap sync ios
+npx cap open ios       # App.xcworkspace가 열린다 (.xcodeproj 아님)
+```
+
+배포 대상 iOS 14.0, 번들 ID는 Android와 같은 `com.qed.note`. 실기기에 올리려면
+Xcode에서 Signing & Capabilities → Team만 지정하면 된다 (시뮬레이터는 서명 없이 뜬다).
+
+`Directory.Data`(문서 저장, `documentStore.ts`)는 iOS에서 `Library/NoCloud`에 떨어진다 —
+iCloud 백업·Files 앱 노출 없이 앱 전용이라 Android의 내부 저장소와 같은 성격이다.
+
 ## 화면 (시안2 — 삼성노트 스타일)
 
 - **노트 목록** — 사이드바 + 노트 그리드 + FAB 업로드. 길게 누르기로 이름 변경/삭제,

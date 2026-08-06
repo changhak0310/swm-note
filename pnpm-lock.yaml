@@ -26,6 +26,9 @@ importers:
       '@capacitor/filesystem':
         specifier: ^7.1.1
         version: 7.1.8(@capacitor/core@7.6.8)
+      '@capacitor/ios':
+        specifier: ^7.6.8
+        version: 7.6.8(@capacitor/core@7.6.8)
       '@puri/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -247,6 +250,11 @@ packages:
     resolution: {integrity: sha512-Qpw/2SE4/CzqAUvGgSM9hw/uXQ5qoOaF4wxbToXwpAaKPS+tzletS1h5ti3jjLmGcqizTs2sEXMtcsARW/Ceew==}
     peerDependencies:
       '@capacitor/core': '>=7.0.0'
+
+  '@capacitor/ios@7.6.8':
+    resolution: {integrity: sha512-TAM1FdI1Cfl8e/wLBo7x5m61V/J1fMEpyxU2psZzHzsa436k2pwEME6CQoBRYdw6Q6gud0jZSPwOVrNn+MI7Ag==}
+    peerDependencies:
+      '@capacitor/core': ^7.6.0
 
   '@capacitor/synapse@1.0.4':
     resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
@@ -2176,6 +2184,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 7.6.8
       '@capacitor/synapse': 1.0.4
+
+  '@capacitor/ios@7.6.8(@capacitor/core@7.6.8)':
+    dependencies:
+      '@capacitor/core': 7.6.8
 
   '@capacitor/synapse@1.0.4': {}
 

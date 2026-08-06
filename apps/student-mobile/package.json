@@ -14,6 +14,7 @@
     "@capacitor/app": "^7.0.1",
     "@capacitor/core": "^7.4.0",
     "@capacitor/filesystem": "^7.1.1",
+    "@capacitor/ios": "^7.6.8",
     "@puri/ui": "workspace:*",
     "idb": "^8.0.3",
     "pdfjs-dist": "^5.3.31",

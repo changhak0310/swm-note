@@ -8,10 +8,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.puri.student"
+    namespace "com.qed.note"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.puri.student"
+        applicationId "com.qed.note"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
