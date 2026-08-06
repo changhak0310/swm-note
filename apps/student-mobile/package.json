@@ -17,6 +17,7 @@
     "@puri/ui": "workspace:*",
     "idb": "^8.0.3",
     "pdfjs-dist": "^5.3.31",
+    "posthog-js": "^1.409.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.18.1",
