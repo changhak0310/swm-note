@@ -11,6 +11,10 @@ apps/student-mobile/android/app/build/
 apps/student-mobile/android/.gradle/
 apps/student-mobile/android/local.properties
 
+# 릴리스 서명 — 키스토어·비밀번호는 절대 커밋 금지
+apps/student-mobile/android/upload-keystore.jks
+apps/student-mobile/android/key.properties
+
 # Spec Kit — 확장·프리셋 카탈로그 네트워크 캐시 (search 시 재생성된다)
 .specify/*/.cache/
 
