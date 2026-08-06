@@ -22,18 +22,10 @@ export function NoteList() {
   const documents = useDocumentStore((s) => s.documents)
   const listMeta = useDocumentStore((s) => s.listMeta)
   const importing = useDocumentStore((s) => s.importing)
-  const answerPdfPromptDocId = useDocumentStore((s) => s.answerPdfPromptDocId)
   const store = useDocumentStore.getState()
   const navigate = useNavigate()
 
-  // 정답지 슬롯을 마치면 그 문서를 연다 (F-02) — 로딩은 /doc/:docId 로더가 맡는다
-  const openAfterPrompt = (docId: string | null) => {
-    if (docId) void navigate(paths.doc(docId))
-  }
-
   const fileRef = useRef<HTMLInputElement>(null)
-  const answerFileRef = useRef<HTMLInputElement>(null)
-  const [banner, setBanner] = useState(() => !localStorage.getItem('puri-banner-dismissed'))
   const [menuDoc, setMenuDoc] = useState<Document | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Document | null>(null)
   const [renaming, setRenaming] = useState<Document | null>(null)
@@ -49,19 +41,25 @@ export function NoteList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 문제지를 올리면 곧장 그 문서를 연다 — 로딩은 /doc/:docId 로더가 맡는다.
+  //
+  // 정답지 슬롯 프롬프트(F-02 규칙 1)는 흐름에서 뺐다. importPdf가 여전히
+  // answerPdfPromptDocId를 세우므로, 묻지 않고 skipAnswerPdf로 그 상태를 비우고
+  // 문서 id를 받아 연다. 정답지 첨부 코드(attachAnswerPdf)는 스토어에 그대로 있다.
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (file) void store.importPdf(file)
-  }
-
-  const dismissBanner = () => {
-    localStorage.setItem('puri-banner-dismissed', '1')
-    setBanner(false)
+    if (!file) return
+    void store
+      .importPdf(file)
+      .then(() => store.skipAnswerPdf())
+      .then((docId) => {
+        if (docId) void navigate(paths.doc(docId))
+      })
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="relative flex h-[var(--screen-h)] overflow-hidden">
       {/* ---------- 사이드바 ---------- */}
       <aside className="flex w-[280px] flex-none flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-sunken)] p-[var(--space-3)]">
         <div className="flex items-center gap-[var(--space-3)] px-[var(--space-2)] py-[var(--space-3)]">
@@ -118,7 +116,7 @@ export function NoteList() {
       </aside>
 
       {/* ---------- 메인 ---------- */}
-      <main className="puri-scroll relative flex-1 overflow-y-auto px-[var(--space-8)] pb-16 pt-[var(--space-5)]">
+      <main className="puri-scroll flex-1 overflow-y-auto px-[var(--space-8)] pb-16 pt-[var(--space-5)]">
         <div className="pb-[var(--space-2)] pt-[var(--space-5)] text-center">
           <h1 className="text-[length:var(--text-display)] font-bold tracking-[var(--track-tight)] text-[color:var(--text-strong)]">
             {view === 'trash' ? '휴지통' : '모든 노트'}
@@ -128,29 +126,8 @@ export function NoteList() {
           </p>
         </div>
 
-        {view === 'notes' && banner && (
-          <div className="mb-[var(--space-5)] mt-[var(--space-4)] flex items-start gap-[var(--space-4)] rounded-[var(--radius-lg)] border border-[var(--green-200)] bg-[var(--brand-tint-soft)] px-[var(--space-5)] py-[var(--space-4)]">
-            <img src={logo} width={34} height={34} alt="" className="mt-0.5 flex-none" />
-            <div className="flex-1">
-              <div className="text-[16px] font-semibold text-[color:var(--text-strong)]">
-                노트에서 벗어나지 않고 채점
-              </div>
-              <div className="mt-0.5 text-[14px] leading-5 text-[color:var(--text-muted)]">
-                풀이를 마치면 왼쪽 <b className="text-[color:var(--text-brand)]">✦ AI 버튼</b>으로
-                채점 — 시험지처럼 문제 옆에 O·사선이 그려져. 틀린 문제는 그 자리에서 다시 풀 수
-                있어.
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-none self-end px-1 text-brand-ink"
-              onClick={dismissBanner}
-            >
-              확인
-            </Button>
-          </div>
-        )}
+        {/* 온보딩 배너는 뺐다 — 내용이 전부 ✦ AI 채점 버튼 사용법이었는데
+            그 버튼이 툴바에서 빠져 안내가 거짓이 된다 */}
 
         {view === 'trash' ? (
           trashed.length === 0 ? (
@@ -193,54 +170,25 @@ export function NoteList() {
           </div>
         )}
 
-        {/* FAB — 새 PDF 올리기 (F-02) */}
-        {view === 'notes' && (
-          <IconButton
-            variant="solid"
-            label="PDF 올리기"
-            className="sticky bottom-5 float-right mt-5 size-[60px] rounded-full shadow-lg"
-            disabled={importing}
-            onClick={() => fileRef.current?.click()}
-          >
-            {importing ? <Spinner /> : <PencilIcon />}
-          </IconButton>
-        )}
         <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={onFile} />
       </main>
 
-      {/* ---------- 정답지 슬롯 (F-02 규칙 1) ---------- */}
-      {/* 이 하나만 닫을 수 없다 — 올리든 건너뛰든 선택을 해야 문서가 열린다.
-          그래서 Escape·바깥 클릭을 막는다. 나머지 다이얼로그는 기본대로 닫힌다. */}
-      {answerPdfPromptDocId && (
-        <Dialog open>
-          <DialogContent
-            onEscapeKeyDown={(e) => e.preventDefault()}
-            onPointerDownOutside={(e) => e.preventDefault()}
-          >
-            <DialogTitle>정답지 PDF도 있나요?</DialogTitle>
-            <DialogDescription>
-              정답지를 올리면 정답을 자동으로 불러와. 나중에 정답 입력 화면에서 올릴 수도 있어.
-            </DialogDescription>
-            <DialogFooter>
-              <Button variant="ghost" onClick={() => void store.skipAnswerPdf().then(openAfterPrompt)}>
-                건너뛰기
-              </Button>
-              <Button onClick={() => answerFileRef.current?.click()}>정답지 올리기</Button>
-            </DialogFooter>
-            <input
-              ref={answerFileRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                e.target.value = ''
-                if (f) void store.attachAnswerPdf(f).then(openAfterPrompt)
-              }}
-            />
-          </DialogContent>
-        </Dialog>
+      {/* FAB — 새 PDF 올리기 (F-02).
+          스크롤 컨테이너(main) 밖에 둔다 — 안에 두면 sticky든 absolute든 콘텐츠를
+          따라 흘러서 화면 오른쪽 아래에 붙어 있지 못한다. 기준은 셸 루트다. */}
+      {view === 'notes' && (
+        <IconButton
+          variant="solid"
+          label="PDF 올리기"
+          className="absolute bottom-6 right-6 size-[60px] rounded-full shadow-lg"
+          disabled={importing}
+          onClick={() => fileRef.current?.click()}
+        >
+          {importing ? <Spinner /> : <PencilIcon />}
+        </IconButton>
       )}
+
+      {/* 정답지 슬롯 프롬프트(F-02 규칙 1)는 흐름에서 뺐다 — onFile이 곧장 문서를 연다 */}
 
       {/* ---------- 길게 누르기 메뉴 (F-01) ---------- */}
       {menuDoc && (
@@ -422,7 +370,7 @@ function NoteCard({
     >
       <div
         className="relative aspect-[1/1.24] overflow-hidden rounded-[12px] border bg-[var(--paper)] shadow-[var(--shadow-sm)]"
-        style={{ borderColor: meta?.pendingGrade ? 'var(--green-300)' : 'var(--border-subtle)' }}
+        style={{ borderColor: 'var(--border-subtle)' }}
       >
         <div
           className="absolute inset-0 opacity-70"
@@ -437,11 +385,7 @@ function NoteCard({
           className="relative h-full w-full object-cover object-top"
           style={{ opacity: missing ? 0.35 : 1 }}
         />
-        {meta?.pendingGrade && (
-          <span className="absolute right-2.5 top-2.5 rounded-full bg-[var(--brand)] px-2 py-1 text-[10px] font-bold text-white">
-            채점 대기
-          </span>
-        )}
+        {/* 「채점 대기」 배지는 뺐다 — 채점 진입점이 없어 영영 대기에 머문다 */}
         {missing && (
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--ink-800)] px-3 py-1.5 text-[12px] font-semibold text-white">
             파일 없음
@@ -456,11 +400,7 @@ function NoteCard({
         {meta && meta.regionCount > 0 ? `${meta.regionCount}문항 · ` : ''}
         {fmtRelative(doc.lastOpenedAt)}
       </div>
-      {meta?.lastResult && (
-        <div className="mt-0.5 text-[12px] font-medium" style={{ color: meta.lastResult.wrong > 0 ? 'var(--grade-x)' : 'var(--grade-o)' }}>
-          {meta.lastResult.total}문항 중 {meta.lastResult.wrong}개 틀림
-        </div>
-      )}
+      {/* 지난 채점 결과(N개 틀림) 줄도 뺐다 */}
     </button>
   )
 }

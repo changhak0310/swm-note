@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom'
 import { findRegion, latestPerRegion, useDocumentStore } from '../stores/documentStore'
 import { useInkStore } from '../stores/inkStore'
 import { paths } from '../routes/paths'
-import { useGrade } from '../routes/useGrade'
 import { consecutiveCorrect } from '../lib/grading'
 import { Button, IconButton, RetryChip, ReviewChecks, Timer } from '@puri/ui'
 import { PenToolbar } from './PenToolbar'
@@ -33,7 +32,7 @@ export function Editor() {
   const sumX = graded.length - sumO
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--paper)]">
+    <div className="flex h-[var(--screen-h)] flex-col overflow-hidden bg-[var(--paper)]">
       {/* ---------- 상단 바 ---------- */}
       <header className="flex h-[60px] flex-none items-center border-b border-[var(--border-subtle)] px-[var(--space-4)]">
         <IconButton label="목록으로" onClick={() => void navigate(paths.list)}>
@@ -44,18 +43,13 @@ export function Editor() {
         <span className="ml-1.5 truncate text-[20px] font-semibold text-[color:var(--text-strong)]">
           {doc.name}
         </span>
-        {graded.length > 0 && (
-          <span className="ml-3 inline-flex flex-none items-center gap-1.5 rounded-full bg-[var(--brand-tint)] px-3 py-[5px] text-[13px] font-semibold text-[color:var(--text-brand)]">
-            채점 완료 · O <span className="num">{sumO}</span> / 사선 <span className="num">{sumX}</span>
-          </span>
-        )}
+        {/* 채점 완료 배지는 뺐다 — 지난 채점 결과를 되비추는 표시다 */}
         <AnalysisSummary />
         <div className="flex-1" />
+        {/* 정답 입력 버튼은 뺐다 — 정답 입력 화면(AnswerKeyScreen)과 /doc/:id/answers
+            라우트는 그대로 살아 있고, 여기 진입점만 끊었다 */}
         <div className="flex items-center gap-[var(--space-2)]">
           {import.meta.env.DEV && <AnalysisTools />}
-          <Button variant="secondary" size="sm" onClick={() => void navigate(paths.answers(doc.id))}>
-            정답 입력
-          </Button>
         </div>
       </header>
 
@@ -278,7 +272,6 @@ function ResolveSheet() {
   const attemptsAll = useDocumentStore((s) => s.attemptsAll)
   const revealRegionId = useInkStore((s) => s.revealRegionId)
   const store = useDocumentStore.getState()
-  const grade = useGrade()
 
   // 재풀이 시간은 상대 신호 — 세션 한정, 저장하지 않는다
   const [sec, setSec] = useState(0)
@@ -355,7 +348,8 @@ function ResolveSheet() {
             3회 연속 정답 · 졸업
           </span>
         )}
-        <Button onClick={() => void grade()}>채점하기</Button>
+        {/* 채점하기 버튼은 뺐다 — 프로덕션에 남은 마지막 grade() 진입점이었다.
+            채점 코드(documentStore.grade·useGrade·grading.ts)는 그대로 살아 있다. */}
       </div>
     </div>
   )

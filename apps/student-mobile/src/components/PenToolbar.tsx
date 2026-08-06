@@ -1,8 +1,10 @@
-// 시안2 좌측 펜 툴바 — 펜·형광펜·지우개·색 3종·실행취소 + ✦ AI 채점 (주 진입점)
+// 시안2 좌측 펜 툴바 — 펜·형광펜·지우개·색 3종·실행취소
 // 키보드·올가미 등은 1차 범위 밖이라 비활성으로만 보여준다
+//
+// ✦ AI 채점 버튼은 툴바에서 뺐다 — 채점 코드(documentStore.grade)는 그대로 살아 있고
+// 진입점만 끊었다. 되살리려면 여기에 버튼을 다시 달면 된다.
 import type { ReactNode } from 'react'
-import { IconButton, Toggle } from '@puri/ui'
-import { useDocumentStore } from '../stores/documentStore'
+import { Toggle } from '@puri/ui'
 import { useInkStore } from '../stores/inkStore'
 import { COLOR_HEX, useToolStore, type InkColor, type Tool } from '../stores/toolStore'
 
@@ -17,8 +19,6 @@ export function PenToolbar() {
   const redo = useInkStore((s) => s.redo)
   const canUndo = useInkStore((s) => s.undoStack.length > 0)
   const canRedo = useInkStore((s) => s.redoStack.length > 0)
-  const grade = useDocumentStore((s) => s.grade)
-  const graded = useDocumentStore((s) => Object.keys(s.attemptsAll).length > 0)
 
   return (
     <div className="puri-scroll flex w-[66px] flex-none flex-col items-center gap-1 overflow-y-auto border-r border-[var(--border-subtle)] bg-[var(--paper)] py-3">
@@ -38,31 +38,6 @@ export function PenToolbar() {
       <ToolButton label="올가미 (선택·이동·삭제)" active={tool === 'lasso'} onClick={() => setTool('lasso')}>
         <LassoIcon />
       </ToolButton>
-      <ToolButton
-        label={fingerDraw ? '손가락 필기 켜짐 — 두 손가락으로 스크롤·확대' : '손가락 필기 꺼짐 — S펜 전용'}
-        active={fingerDraw}
-        onClick={toggleFingerDraw}
-      >
-        <FingerIcon />
-      </ToolButton>
-      <Divider />
-
-      {/* ✦ AI 채점 — 시안2의 주 진입점 (F-07) */}
-      <IconButton
-        variant="solid"
-        label="AI 채점"
-        onClick={() => void grade()}
-        className="relative size-12 shadow-sm"
-      >
-        {/* 아직 한 번도 채점 안 했으면 조용히 맥박친다 — 주 진입점이라 눈에 띄어야 한다 */}
-        {!graded && (
-          <span
-            className="absolute inset-0 rounded-md"
-            style={{ animation: 'puriPulse 2.2s var(--ease-out) infinite' }}
-          />
-        )}
-        <SparkIcon />
-      </IconButton>
       <Divider />
 
       {(Object.keys(COLOR_HEX) as InkColor[]).map((c) => (
@@ -96,6 +71,20 @@ export function PenToolbar() {
       </ToolButton>
       <ToolButton label="다시실행" disabled={!canRedo} onClick={redo}>
         <RedoIcon />
+      </ToolButton>
+
+      {/* ---------- 설정 ---------- */}
+      {/* 손가락 필기는 도구가 아니라 설정이다. 도구들 사이에 같은 스타일로 두면
+          기본값이 켜짐이라 펜과 함께 늘 불이 들어오고, 손 아이콘은 이동 도구로
+          읽히기 때문에 "펜과 이동 모드가 동시에 켜졌다"로 보인다.
+          그래서 그룹을 나누고, 켜짐을 브랜드 배경 대신 아이콘으로 말한다 —
+          꺼지면 손에 빗금이 그어진다. */}
+      <Divider />
+      <ToolButton
+        label={fingerDraw ? '손가락 필기 켜짐 — 두 손가락으로 스크롤·확대' : '손가락 필기 꺼짐 — S펜 전용'}
+        onClick={toggleFingerDraw}
+      >
+        <FingerIcon off={!fingerDraw} />
       </ToolButton>
     </div>
   )
@@ -164,19 +153,15 @@ const LassoIcon = () => (
     <path d="M3.3 14A6.8 6.8 0 0 1 2 10c0-4.4 4.5-8 10-8s10 3.6 10 8-4.5 8-10 8a12 12 0 0 1-5-1" />
   </svg>
 )
-const FingerIcon = () => (
+/** off면 빗금을 긋는다 — 켜짐/꺼짐을 배경색이 아니라 아이콘으로 말한다 */
+const FingerIcon = ({ off }: { off?: boolean }) => (
   <I>
     <path d="M18 11V6a2 2 0 0 0-4 0v5" />
     <path d="M14 10V4a2 2 0 0 0-4 0v2" />
     <path d="M10 10.5V6a2 2 0 0 0-4 0v8" />
     <path d="m7 15-1.76-1.76a2 2 0 0 0-2.83 2.82l3.6 3.6A8 8 0 0 0 22 14V7a2 2 0 0 0-4 0" />
+    {off && <path d="M3 3 21 21" strokeWidth="2" />}
   </I>
-)
-const SparkIcon = () => (
-  <svg className="relative" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
-    <path d="m6.3 6.3 2.8 2.8M14.9 14.9l2.8 2.8M17.7 6.3l-2.8 2.8M9.1 14.9l-2.8 2.8" />
-  </svg>
 )
 const UndoIcon = () => (
   <I w={23}>

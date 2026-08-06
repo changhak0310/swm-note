@@ -13,6 +13,19 @@ body {
   background: var(--surface-page);
 }
 
+/* ---------- 네이티브 안전 영역 ---------- */
+/* index.html이 viewport-fit=cover라 WebView가 상태바·노치 밑까지 차지한다. 그 몫을
+   앱이 직접 비워 준다 — 안 비우면 사이드바 워드마크와 화면 제목이 상태바에 깔린다.
+   inset이 없는 곳(브라우저·Android)에서는 0이라 아무 일도 일어나지 않는다. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --screen-h: calc(100dvh - var(--safe-top));
+}
+
+#root {
+  padding-top: var(--safe-top);
+}
+
 /* ---------- 시안2 모션 ---------- */
 @keyframes puriInk {
   from { stroke-dashoffset: 220; }

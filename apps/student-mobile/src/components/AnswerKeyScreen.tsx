@@ -91,7 +91,7 @@ export function AnswerKeyScreen() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--surface-page)]">
+    <div className="flex h-[var(--screen-h)] flex-col overflow-hidden bg-[var(--surface-page)]">
       <header className="flex h-[60px] flex-none items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--paper)] px-[var(--space-4)]">
         <IconButton
           label="필기 화면으로"

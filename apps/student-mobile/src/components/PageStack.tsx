@@ -6,7 +6,6 @@ import { PdfCanvas } from './PdfCanvas'
 import { InkCanvas } from './InkCanvas'
 import { TextLayer } from './TextLayer'
 import { AnalysisChip, MarkOverlay } from './MarkOverlay'
-import { GradeOverlay } from './GradeOverlay'
 import { ZoneDebug } from './ZoneDebug'
 
 export function PageStack() {
@@ -68,7 +67,7 @@ function PageLayers({
       />
       <TextLayer page={page} width={width} />
       <MarkOverlay page={page} regions={regions} width={width} height={height} />
-      <GradeOverlay regions={regions} width={width} height={height} />
+      {/* 채점 마크(O·사선) 레이어는 뺐다 — GradeOverlay 컴포넌트는 그대로 남아 있다 */}
       {showZoneDebug && <ZoneDebug regions={regions} width={width} height={height} />}
       <AnalysisChip page={page} />
     </>
