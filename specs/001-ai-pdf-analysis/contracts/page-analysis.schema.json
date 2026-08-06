@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PageAnalysis",
+  "description": "프록시가 Anthropic API의 output_config.format 에 넘기는 스키마. 정답/오답 필드는 의도적으로 존재하지 않는다 (FR-013 / 헌법 원칙 II). minimum·maximum 같은 수치 제약은 구조화 출력이 지원하지 않으므로 프록시가 코드로 검증한다 (research D-4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["regions", "answers"],
+  "properties": {
+    "regions": {
+      "type": "array",
+      "description": "kind=workbook 일 때 채운다. answerkey 면 빈 배열.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["numLabel", "bounds", "answerType", "choices", "confidence"],
+        "properties": {
+          "numLabel": {
+            "type": "string",
+            "description": "문제 번호의 값. 정수 문자열 (예: \"12\"). 읽지 못했으면 빈 문자열."
+          },
+          "numBox": { "$ref": "#/$defs/box" },
+          "bounds": { "$ref": "#/$defs/box" },
+          "answerType": {
+            "type": "string",
+            "enum": ["choice", "integer", "expression"],
+            "description": "1차 채점 대상은 choice 뿐이다."
+          },
+          "choices": {
+            "type": "array",
+            "description": "객관식 선지. 주관식이면 빈 배열.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "box"],
+              "properties": {
+                "label": {
+                  "type": "integer",
+                  "enum": [1, 2, 3, 4, 5],
+                  "description": "①~⑤ 를 1~5 로."
+                },
+                "box": { "$ref": "#/$defs/box" }
+              }
+            }
+          },
+          "confidence": {
+            "type": "number",
+            "description": "이 문항 추출에 대한 확신도. 0~1. 범위 검증은 프록시가 한다."
+          }
+        }
+      }
+    },
+    "answers": {
+      "type": "array",
+      "description": "kind=answerkey 일 때 채운다. workbook 이면 빈 배열.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["numLabel", "value", "confidence"],
+        "properties": {
+          "numLabel": {
+            "type": "string",
+            "description": "문항 번호의 값. regions[].numLabel 과 이 값으로 결합한다 (R9)."
+          },
+          "value": {
+            "type": "string",
+            "description": "정답. 객관식은 \"1\"~\"5\"."
+          },
+          "confidence": { "type": "number" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "box": {
+      "type": "object",
+      "description": "전송한 이미지의 픽셀 좌표. 정규화는 클라이언트가 한다 (R8, ARCHITECTURE.md §5).",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number" },
+        "h": { "type": "number" }
+      }
+    }
+  }
+}
